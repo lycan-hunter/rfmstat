@@ -41,4 +41,6 @@
 *.dwo
 
 # Builds
-build
+./build
+./bin
+./third_party
