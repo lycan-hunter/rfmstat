@@ -1,21 +1,27 @@
 #include <pcap.h>
+
 #include <CLI/CLI.hpp>
 #include <iostream>
 
 int main(int argc, char** argv) {
-  CLI::App app{"Packet Sniffer using libpcap"};
+  CLI::App app{"RFMstat -- Wi-Fi statistics collector"};
 
-  std::string interface = "eth0";
-  app.add_option("-i,--interface", interface, "Network interface to sniff");
+  std::string interface = "wlan0";
+  uint8_t channels = 14;
+
+  app.add_option("-i,--iface", interface, "Network interface to sniff");
+  app.add_option("-c,--channels", channels, "Quantity of available channels");
 
   CLI11_PARSE(app, argc, argv);
-
-  char errbuf[PCAP_ERRBUF_SIZE];
-  pcap_t* handle = pcap_open_live(interface.c_str(), BUFSIZ, 1, 1000, errbuf);
 
   if (handle == nullptr) {
     std::cerr << "Couldn't open device: " << errbuf << std::endl;
     return 1;
+  }
+
+  for (int i = 1; i <= channels; i++) {
+    std::cout << "Monitoring on channel " << i << " of " << channels
+              << std::endl;
   }
 
   std::cout << "Sniffing on interface: " << interface << std::endl;
