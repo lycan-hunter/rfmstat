@@ -2,24 +2,36 @@
 #include <pcap.h>
 
 #include <cstdint>
+#include <memory>
 #include <string>
+#include <array>
 
 namespace rfmstat {
 class ChannelSniffer {
  public:
-  uint64_t get_pps();
-  bool start_sniff();
-  bool stop_sniff();
-  uint64_t _pps;
-  uint8_t _channel;
-  std::string _iface;
+  ChannelSniffer(uint8_t channel, std::string iface);
+  ~ChannelSniffer();
+
+  void start_sniff(uint8_t channel = 0, std::string iface = std::string(""));
+  void stop_sniff();
+
+  bool is_sniffing() const { return _is_sniffing; }
+
+  uint8_t channel;
+  std::string iface;
+  //   uint64_t pps() const { return &_pps; }
+  std::string errbuf() const { return std::string(_errbuf); }
+
+  const std::array<uint64_t, 234>& channels_pps() const {
+    return _channels_pps;
+  }
 
  private:
-  char errbuf[PCAP_ERRBUF_SIZE];
-  pcap_t* handle =
+  std::array<uint64_t, 234> _channels_pps;
+  uint64_t _pps = 0;
+  char _errbuf[PCAP_ERRBUF_SIZE] = {0};
+  bool _is_sniffing = false;
+  pcap_t* _sniffer =
       nullptr;  // pcap_open_live(iface.c_str(), BUFSIZ, 1, 1000, errbuf);
-
-  ChannelSniffer();
-  ~ChannelSniffer();
 };
 }  // namespace rfmstat
