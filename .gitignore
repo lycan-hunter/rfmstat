@@ -41,6 +41,9 @@
 *.dwo
 
 # Builds
-./build
-./bin
-./third_party
+*/build/
+*/bin/
+*/third_party/
+*/.vscode/
+
+.clang-format
