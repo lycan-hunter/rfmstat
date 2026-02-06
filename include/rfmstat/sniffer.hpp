@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <pair>
+#include <utility>
 
 namespace rfmstat {
 class ChannelSniffer {
@@ -15,16 +15,16 @@ class ChannelSniffer {
 
   void start_sniff(uint8_t channel = 0, std::string iface = std::string(""));
   void stop_sniff();
-  void summing_pps();
+  void sniff_current_channel();
 
   bool is_sniffing() const { return _is_sniffing; }
 
   uint8_t channel;
   std::string iface;
-  //   uint64_t pps() const { return &_pps; }
+
   std::string errbuf() const { return std::string(_errbuf); }
 
-  const std::array<uint64_t, 234>& channels_pps() const {
+  const std::array<std::pair<uint64_t,uint64_t>, 234>& channels_info() const {
     return _channels_info;
   }
 
@@ -34,8 +34,13 @@ class ChannelSniffer {
   void handle_packet(const struct pcap_pkthdr* header, const u_char* bytes);
 
  private:
-  std::array<uint64_t, 234> _channels_info;
-  uint64_t _pps = 0;
+  // PAIR: <uint64_t packets, uint64_t avg_packet_lenght>
+  std::array<std::pair<uint64_t,uint64_t>, 234> _channels_info;
+
+  uint64_t _timeout = 5000;
+
+  uint64_t _packets = 0;
+  uint64_t _len = 0;
   char _errbuf[PCAP_ERRBUF_SIZE] = {0};
   bool _is_sniffing = false;
   pcap_t* _sniffer =

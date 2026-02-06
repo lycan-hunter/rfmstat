@@ -1,8 +1,10 @@
 #include "rfmstat/sniffer.hpp"
 
+#include <chrono>
 #include <format>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
 
 #include "rfmstat/utils.hpp"
 
@@ -16,7 +18,10 @@ ChannelSniffer::ChannelSniffer(uint8_t channel, std::string iface) {
     throw std::invalid_argument(
         std::format("Interface '{}' is not exists or not found !", iface));
   }
-  _channels_info.fill(0);
+  for (auto& channel : _channels_info) {
+    channel.first = 0;
+    channel.second = 0;
+  }
 }
 
 ChannelSniffer::~ChannelSniffer() {
@@ -58,12 +63,28 @@ void ChannelSniffer::pcap_callback(u_char* user_data,
 }
 
 void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header,
-                                   const u_char* bytes) {}
+                                   const u_char* bytes) {
+  _packets++;
+  _len += header->len;
+}
 
-void ChannelSniffer::summing_pps() {
+void ChannelSniffer::sniff_current_channel() {
   if (!_is_sniffing) {
-    throw std::runtime_error("Sniffer is not exists, start it before stopping");
+    throw std::runtime_error(
+        "Sniffer is not exists, start it before summing up info");
   }
+  _packets = 0;
+  _len = 0;
+  auto start = std::chrono::steady_clock::now();
+  while (std::chrono::steady_clock::now() - start <
+         std::chrono::milliseconds(_timeout)) {
+        pcap_dispatch(_sniffer, -1, ChannelSniffer::pcap_callback,
+                  reinterpret_cast<u_char*>(this));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+  _channels_info[channel].first = _packets;
+  _channels_info[channel].second = _len;
 }
 
 }  // namespace rfmstat
