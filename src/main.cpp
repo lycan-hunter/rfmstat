@@ -1,11 +1,11 @@
 #include <pcap.h>
 
 #include <CLI/CLI.hpp>
+#include <array>
+#include <chrono>
 #include <format>
 #include <iostream>
-#include <chrono>
 #include <utility>
-#include <array>
 
 #include "rfmstat/sniffer.hpp"
 
@@ -71,36 +71,43 @@ int main(int argc, char** argv) {
 
   rfmstat::ChannelSniffer sniffer(channels, iface, timeout);
   // sniffer.channel = channels;
-  try{
+  try {
     sniffer.start_sniff();
-  }
-  catch (std::exception& e){
-    std::cerr << std::format("Failed to start sniffing: {}", e.what()) << std::endl;
-  }
-  
-  if (sniffer.is_sniffing()){
-    sniffer.sniff_current_channel();
-    sniffer.stop_sniff();
-  } else {
-    std::cerr << std::format("Failed to open sniffer on {}", iface) << std::endl;
-    return 1;
+    if (!sniffer.is_sniffing())
+      throw std::runtime_error("failed to create sniffer");
+  } catch (std::exception& e) {
+    std::cerr << std::format("Failed to start sniffing: {}", e.what())
+              << std::endl;
   }
 
-  uint64_t passed_channels = 0;
+  uint64_t hidden_channels = 0;
   for (int i = 0; i < channels; i++) {
-    // std::cout << std::format("Monitoring on channel {}, interface {}", i, iface)
-              // << std::endl;
-    const auto& cinfo = sniffer.channels_info()[i];
-    // if (cinfo.first == 0){
-      // passed_channels++;
-      // continue;
-    // } else {
-      // std::cout << std::format("Channel: {}, packets captured: {}, sum lenght: {}", i+1, cinfo.first, cinfo.second) << std::endl;
-    // }
+    // std::cout << std::format("Monitoring on channel {}, interface {}", i,
+    // iface)
+    // << std::endl;
+    sniffer.channel = i;
+    sniffer.sniff_current_channel();
   }
 
-  if (passed_channels != 0 ){
-    std::cout << std::format("{} channels hidden, (no packets captured on this channels)...", passed_channels) << std::endl;
+  for (int i = 0; i < channels; i++) {
+    const auto& cinfo = sniffer.channels_info()[i];
+    if (cinfo.packets == 0) {
+      hidden_channels++;
+      continue;
+    } else {
+      std::cout << std::format(
+                       "Channel: {}, packets captured: {}, sum lenght: {}",
+                       i + 1, cinfo.packets, cinfo.length)
+                << std::endl;
+    }
+  }
+
+  if (hidden_channels != 0) {
+    std::cout
+        << std::format(
+               "{} channels hidden, (no packets captured on this channels)...",
+               hidden_channels)
+        << std::endl;
   }
 
   return 0;

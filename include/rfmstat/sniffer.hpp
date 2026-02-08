@@ -15,7 +15,7 @@ class ChannelSniffer {
   ChannelSniffer(uint8_t channel, std::string iface, uint64_t timeout);
   ~ChannelSniffer();
 
-  void start_sniff(uint8_t channel = 0, std::string iface = std::string(""));
+  void start_sniff(std::string iface = std::string(""));
   void stop_sniff();
   void sniff_current_channel();
 
@@ -41,8 +41,6 @@ class ChannelSniffer {
   // PAIR: <uint64_t packets, uint64_t avg_packet_lenght>
   std::array<rfmstat::ChannelData, 234> _channels_info;
 
-  uint64_t _packets = 0;
-  uint64_t _len = 0;
   char _errbuf[PCAP_ERRBUF_SIZE] = {0};
   bool _is_sniffing = false;
   pcap_t* _sniffer =
