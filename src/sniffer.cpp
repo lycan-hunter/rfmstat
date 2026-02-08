@@ -9,7 +9,8 @@
 #include "rfmstat/utils.hpp"
 
 namespace rfmstat {
-ChannelSniffer::ChannelSniffer(uint8_t channel, std::string iface) {
+ChannelSniffer::ChannelSniffer(uint8_t channel, std::string iface,
+                               uint64_t timeout) {
   if (channel == 0 || channel > 233) {
     throw std::invalid_argument(
         std::format("Incorrect channel specified ('{}') !", channel));
@@ -18,10 +19,9 @@ ChannelSniffer::ChannelSniffer(uint8_t channel, std::string iface) {
     throw std::invalid_argument(
         std::format("Interface '{}' is not exists or not found !", iface));
   }
-  for (auto& channel : _channels_info) {
-    channel.first = 0;
-    channel.second = 0;
-  }
+  this->timeout = timeout;
+  this->iface = iface;
+  this->channel = channel;
 }
 
 ChannelSniffer::~ChannelSniffer() {
@@ -40,8 +40,27 @@ void ChannelSniffer::start_sniff(uint8_t channel, std::string iface) {
   if (_is_sniffing) {
     throw std::runtime_error("Sniffer already exists, stop it before starting");
   }
-  _sniffer = pcap_open_live(iface.c_str(), BUFSIZ, 1, 5, _errbuf);
-  _is_sniffing = true;
+  std::string _serrbuf;
+  _sniffer = pcap_create(iface.c_str(), _errbuf);
+  _serrbuf = std::string(_errbuf);
+  if (!_serrbuf.empty()) {
+    throw std::runtime_error(
+        std::format("Failed to create sniffer: {}", _serrbuf));
+  }
+
+  pcap_set_snaplen(_sniffer, BUFSIZ);
+  pcap_set_promisc(_sniffer, 1);
+  pcap_set_timeout(_sniffer, 1);
+  pcap_set_immediate_mode(_sniffer, 1);
+  pcap_setnonblock(_sniffer, 1, _errbuf);
+  _serrbuf = std::string(_errbuf);
+  if (!_serrbuf.empty()) {
+    throw std::runtime_error(
+        std::format("Failed to set sniffer unblock: {}", _serrbuf));
+  }
+  pcap_activate(_sniffer);
+
+  _is_sniffing = _sniffer != nullptr ? true : false;
 }
 
 void ChannelSniffer::stop_sniff() {
@@ -51,6 +70,7 @@ void ChannelSniffer::stop_sniff() {
     pcap_breakloop(_sniffer);
     pcap_close(_sniffer);
     _sniffer = nullptr;
+    _is_sniffing = false;
   }
 }
 
@@ -62,11 +82,43 @@ void ChannelSniffer::pcap_callback(u_char* user_data,
   sniffer->handle_packet(packet_header, packet_bytes);
 }
 
-void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header,
-                                   const u_char* bytes) {
-  _packets++;
-  _len += header->len;
+void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header, const u_char* bytes) {
+    uint16_t rt_len = *(uint16_t*)(bytes + 2);
+    if (header->caplen < (uint32_t)rt_len + 1) return;
+
+    const u_char* wlan_frame = bytes + rt_len;
+    uint8_t fc = wlan_frame[0];
+
+    FrameType frame = static_cast<FrameType>(fc & 0xFC);
+
+    auto& stats = _channels_info[this->channel];
+
+    
+
+    switch (frame) {
+        // --- Management ---
+        case FrameType::MgmtBeacon:     stats.mgmt_beacon++; break;
+        case FrameType::MgmtAssocReq:   stats.mgmt_assoc++; break;
+        case FrameType::MgmtAuth:       stats.mgmt_auth++; break;
+        case FrameType::MgmtProbeReq:   stats.mgmt_probe_req++; break;
+        case FrameType::MgmtDeauth:     stats.mgmt_deauth++; break;
+
+        // --- Control ---
+        case FrameType::CtrlRTS:        stats.ctrl_rts++; break;
+        case FrameType::CtrlCTS:        stats.ctrl_cts++; break;
+        case FrameType::CtrlAck:        stats.ctrl_ack++; break;
+
+        // --- Data ---
+        case FrameType::DataPlain:      stats.data_plain++; break;
+        case FrameType::DataQoS:        stats.data_qos++; break;
+        case FrameType::DataNull:       stats.data_null++; break;
+
+        default:
+            stats.unknown++;
+            break;
+    }
 }
+
 
 void ChannelSniffer::sniff_current_channel() {
   if (!_is_sniffing) {
@@ -77,14 +129,12 @@ void ChannelSniffer::sniff_current_channel() {
   _len = 0;
   auto start = std::chrono::steady_clock::now();
   while (std::chrono::steady_clock::now() - start <
-         std::chrono::milliseconds(_timeout)) {
-        pcap_dispatch(_sniffer, -1, ChannelSniffer::pcap_callback,
+         std::chrono::milliseconds(timeout)) {
+    pcap_dispatch(_sniffer, -1, ChannelSniffer::pcap_callback,
                   reinterpret_cast<u_char*>(this));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
-  _channels_info[channel].first = _packets;
-  _channels_info[channel].second = _len;
 }
 
 }  // namespace rfmstat

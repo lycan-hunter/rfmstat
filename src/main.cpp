@@ -4,6 +4,8 @@
 #include <format>
 #include <iostream>
 #include <chrono>
+#include <utility>
+#include <array>
 
 #include "rfmstat/sniffer.hpp"
 
@@ -67,9 +69,39 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  for (int i = 1; i <= channels; i++) {
-    std::cout << std::format("Monitoring on channel {}, interface {}", i, iface)
-              << std::endl;
+  rfmstat::ChannelSniffer sniffer(channels, iface, timeout);
+  // sniffer.channel = channels;
+  try{
+    sniffer.start_sniff();
   }
+  catch (std::exception& e){
+    std::cerr << std::format("Failed to start sniffing: {}", e.what()) << std::endl;
+  }
+  
+  if (sniffer.is_sniffing()){
+    sniffer.sniff_current_channel();
+    sniffer.stop_sniff();
+  } else {
+    std::cerr << std::format("Failed to open sniffer on {}", iface) << std::endl;
+    return 1;
+  }
+
+  uint64_t passed_channels = 0;
+  for (int i = 0; i < channels; i++) {
+    // std::cout << std::format("Monitoring on channel {}, interface {}", i, iface)
+              // << std::endl;
+    const auto& cinfo = sniffer.channels_info()[i];
+    // if (cinfo.first == 0){
+      // passed_channels++;
+      // continue;
+    // } else {
+      // std::cout << std::format("Channel: {}, packets captured: {}, sum lenght: {}", i+1, cinfo.first, cinfo.second) << std::endl;
+    // }
+  }
+
+  if (passed_channels != 0 ){
+    std::cout << std::format("{} channels hidden, (no packets captured on this channels)...", passed_channels) << std::endl;
+  }
+
   return 0;
 }

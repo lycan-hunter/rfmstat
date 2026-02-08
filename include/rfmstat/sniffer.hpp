@@ -7,10 +7,12 @@
 #include <string>
 #include <utility>
 
+#include "rfmstat/channel_data.hpp"
+
 namespace rfmstat {
 class ChannelSniffer {
  public:
-  ChannelSniffer(uint8_t channel, std::string iface);
+  ChannelSniffer(uint8_t channel, std::string iface, uint64_t timeout);
   ~ChannelSniffer();
 
   void start_sniff(uint8_t channel = 0, std::string iface = std::string(""));
@@ -22,9 +24,11 @@ class ChannelSniffer {
   uint8_t channel;
   std::string iface;
 
+  uint64_t timeout;
+
   std::string errbuf() const { return std::string(_errbuf); }
 
-  const std::array<std::pair<uint64_t,uint64_t>, 234>& channels_info() const {
+  const std::array<rfmstat::ChannelData, 234>& channels_info() const {
     return _channels_info;
   }
 
@@ -35,9 +39,7 @@ class ChannelSniffer {
 
  private:
   // PAIR: <uint64_t packets, uint64_t avg_packet_lenght>
-  std::array<std::pair<uint64_t,uint64_t>, 234> _channels_info;
-
-  uint64_t _timeout = 5000;
+  std::array<rfmstat::ChannelData, 234> _channels_info;
 
   uint64_t _packets = 0;
   uint64_t _len = 0;
