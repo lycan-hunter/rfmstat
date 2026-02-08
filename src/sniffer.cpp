@@ -80,7 +80,7 @@ void ChannelSniffer::pcap_callback(u_char* user_data,
 }
 
 void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header, const u_char* bytes) {
-    std::cout << '.' << std::endl;
+    // std::cout << '.' << std::endl;
     uint16_t rt_len = *(uint16_t*)(bytes + 2);
     if (header->caplen < (uint32_t)rt_len + 1) return;
 
@@ -126,7 +126,7 @@ void ChannelSniffer::sniff_current_channel() {
         "Sniffer is not exists, start it before summing up info");
   }
   auto start = std::chrono::steady_clock::now();
-  std::cout << std::format("Sniffing {}@{}", channel, iface) << std::endl;
+  // std::cout << std::format("Sniffing {}@{}", channel, iface) << std::endl;
   while (std::chrono::steady_clock::now() - start <
          std::chrono::milliseconds(timeout)) {
     pcap_dispatch(_sniffer, -1, ChannelSniffer::pcap_callback,
