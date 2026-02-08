@@ -4,22 +4,8 @@
 
 #include <string>
 namespace rfmstat {
-bool interface_exists(const std::string& iface) {
-  pcap_if_t* alldevs;
-  char errbuf[PCAP_ERRBUF_SIZE];
+bool interface_exists(const std::string& iface);
 
-  if (pcap_findalldevs(&alldevs, errbuf) == -1) return false;
-
-  bool found = false;
-  for (pcap_if_t* d = alldevs; d != nullptr; d = d->next) {
-    if (iface == d->name) {
-      found = true;
-      break;
-    }
-  }
-
-  pcap_freealldevs(alldevs);
-  return found;
-}
+uint32_t channel_to_mhz(const uint8_t& channel);
 
 }  // namespace rfmstat

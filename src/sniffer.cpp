@@ -9,8 +9,8 @@
 #include "rfmstat/utils.hpp"
 
 namespace rfmstat {
-ChannelSniffer::ChannelSniffer(uint8_t channel, std::string iface,
-                               uint64_t timeout) {
+ChannelSniffer::ChannelSniffer(const uint8_t& channel, const std::string& iface,
+                               const uint64_t& timeout) {
   if (channel == 0 || channel > 233) {
     throw std::invalid_argument(
         std::format("Incorrect channel specified ('{}') !", channel));
@@ -30,9 +30,9 @@ ChannelSniffer::~ChannelSniffer() {
   }
 }
 
-void ChannelSniffer::start_sniff(std::string iface) {
+void ChannelSniffer::start_sniff() {
   if (iface.empty()) {
-    iface = this->iface;
+    throw std::logic_error("No interface specified");
   }
   if (_is_sniffing) {
     throw std::runtime_error("Sniffer already exists, stop it before starting");

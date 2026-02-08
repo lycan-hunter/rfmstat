@@ -3,11 +3,14 @@
 #include <CLI/CLI.hpp>
 #include <array>
 #include <chrono>
+#include <thread>
 #include <format>
 #include <iostream>
 #include <utility>
 
+#include "rfmstat/iface_device.hpp"
 #include "rfmstat/sniffer.hpp"
+#include "rfmstat/utils.hpp"
 
 int main(int argc, char** argv) {
   char errbuf[PCAP_ERRBUF_SIZE];
@@ -69,7 +72,17 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  rfmstat::IfaceDev iface_dev;
+  iface_dev.if_index = iface_dev.get_if_index(iface);
+  if (!iface_dev.is_rfmon()){
+    std::cerr << std::format("Current Wi-Fi adapter ({}) is not on monitore mode", iface) << std::endl;
+    return 1;
+  }
+
+  
   rfmstat::ChannelSniffer sniffer(channels, iface, timeout);
+
+
   // sniffer.channel = channels;
   try {
     sniffer.start_sniff();
@@ -81,12 +94,18 @@ int main(int argc, char** argv) {
   }
 
   uint64_t hidden_channels = 0;
+
   for (int i = 0; i < channels; i++) {
     // std::cout << std::format("Monitoring on channel {}, interface {}", i,
     // iface)
     // << std::endl;
     sniffer.channel = i;
+    uint32_t mhz_channel = rfmstat::channel_to_mhz(i+1);
+    iface_dev.set_rfmon_channel(mhz_channel);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::cout << std::format("Monitoring on {} channel ({} MHz), at {}", i+1, mhz_channel, iface) << std::endl;
     sniffer.sniff_current_channel();
+
   }
 
   for (int i = 0; i < channels; i++) {
