@@ -1,5 +1,5 @@
+//TODO: Catching exception: operation not permitted, invalid channel and other...
 #include <pcap.h>
-
 #include <CLI/CLI.hpp>
 #include <array>
 #include <chrono>
