@@ -21,6 +21,7 @@ add_executable(${PROJECT_NAME}
     src/sniffer.cpp
     src/utils.cpp
     src/iface_device.cpp
+    src/formatter.cpp
 )
 
 # Добавляем пути к заголовкам libnl

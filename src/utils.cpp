@@ -1,9 +1,9 @@
 #include "rfmstat/utils.hpp"
+
 #include <pcap.h>
 
-#include <stdexcept>
 #include <format>
-
+#include <stdexcept>
 #include <string>
 namespace rfmstat {
 bool interface_exists(const std::string& iface) {
@@ -34,4 +34,3 @@ uint32_t channel_to_mhz(const uint8_t& channel) {
 }
 
 }  // namespace rfmstat
-

@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <thread>
 
+#include "rfmstat/formatter.hpp"
 #include "rfmstat/utils.hpp"
 
 namespace rfmstat {
@@ -79,60 +80,115 @@ void ChannelSniffer::pcap_callback(u_char* user_data,
   sniffer->handle_packet(packet_header, packet_bytes);
 }
 
-void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header, const u_char* bytes) {
-    // std::cout << '.' << std::endl;
-    uint16_t rt_len = *(uint16_t*)(bytes + 2);
-    if (header->caplen < (uint32_t)rt_len + 1) return;
+void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header,
+                                   const u_char* bytes) {
+  // std::cout << '.' << std::endl;
+  uint16_t rt_len = *(uint16_t*)(bytes + 2);
+  if (header->caplen < (uint32_t)rt_len + 1) return;
 
-    const u_char* wlan_frame = bytes + rt_len;
-    uint8_t fc = wlan_frame[0];
+  const u_char* wlan_frame = bytes + rt_len;
+  uint8_t type_subtype = (wlan_frame[0] >> 2);
+  FrameType frame = static_cast<FrameType>(type_subtype);
 
-    FrameType frame = static_cast<FrameType>(fc & 0xFC);
+  auto& stats = _channels_info[this->channel];
 
-    auto& stats = _channels_info[this->channel];
+  _channels_info[this->channel].packets++;
+  _channels_info[this->channel].length += header->len;
 
-    _channels_info[this->channel].packets++;
-    _channels_info[this->channel].length += header->len;
+  switch (frame) {
+    // --- Management ---
+    case FrameType::MgmtBeacon:
+      stats.mgmt_beacon++;
+      break;
+    case FrameType::MgmtAssocReq:
+      stats.mgmt_assoc++;
+      break;
+    case FrameType::MgmtAuth:
+      stats.mgmt_auth++;
+      break;
+    case FrameType::MgmtProbeReq:
+      stats.mgmt_probe_req++;
+      break;
+    case FrameType::MgmtDeauth:
+      stats.mgmt_deauth++;
+      break;
+    case FrameType::MgmtProbeRes:
+      stats.mgmt_probe_res++;
+      break;
+    case FrameType::MgmtAction:
+      stats.mgmt_action++;
+      break;
 
+    // --- Control ---
+    case FrameType::CtrlRTS:
+      stats.ctrl_rts++;
+      break;
+    case FrameType::CtrlCTS:
+      stats.ctrl_cts++;
+      break;
+    case FrameType::CtrlAck:
+      stats.ctrl_ack++;
+      break;
+    case FrameType::CtrlBA:
+      stats.ctrl_ba++;
+      break;
+    case FrameType::CtrlBA_Req:
+      stats.ctrl_ba_req++;
+      break;
 
-    switch (frame) {
-        // --- Management ---
-        case FrameType::MgmtBeacon:     stats.mgmt_beacon++; break;
-        case FrameType::MgmtAssocReq:   stats.mgmt_assoc++; break;
-        case FrameType::MgmtAuth:       stats.mgmt_auth++; break;
-        case FrameType::MgmtProbeReq:   stats.mgmt_probe_req++; break;
-        case FrameType::MgmtDeauth:     stats.mgmt_deauth++; break;
+    // --- Data ---
+    case FrameType::DataPlain:
+      stats.data_plain++;
+      break;
+    case FrameType::DataQoS:
+      stats.data_qos++;
+      break;
+    case FrameType::DataNull:
+      stats.data_null++;
+      break;
 
-        // --- Control ---
-        case FrameType::CtrlRTS:        stats.ctrl_rts++; break;
-        case FrameType::CtrlCTS:        stats.ctrl_cts++; break;
-        case FrameType::CtrlAck:        stats.ctrl_ack++; break;
-
-        // --- Data ---
-        case FrameType::DataPlain:      stats.data_plain++; break;
-        case FrameType::DataQoS:        stats.data_qos++; break;
-        case FrameType::DataNull:       stats.data_null++; break;
-
-        default:
-            stats.unknown++;
-            break;
-    }
+    default:
+      stats.unknown++;
+      break;
+  }
 }
-
 
 void ChannelSniffer::sniff_current_channel() {
   if (!_is_sniffing) {
     throw std::runtime_error(
-        "Sniffer is not exists, start it before summing up info");
+        "Sniffer does not exist, start it before sniffing");
   }
+
   auto start = std::chrono::steady_clock::now();
-  // std::cout << std::format("Sniffing {}@{}", channel, iface) << std::endl;
-  while (std::chrono::steady_clock::now() - start <
-         std::chrono::milliseconds(timeout)) {
+
+  while (true) {
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+
+    if (elapsed.count() >= timeout) break;
+
     pcap_dispatch(_sniffer, -1, ChannelSniffer::pcap_callback,
                   reinterpret_cast<u_char*>(this));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    double seconds = elapsed.count() / 1000.0;
+    double current_pps = 0.0;
+
+    if (seconds > 0.01) {
+      current_pps =
+          static_cast<double>(_channels_info[channel].packets) / seconds;
+    }
+
+    uint32_t freq_mhz = rfmstat::channel_to_mhz(channel + 1);
+
+    std::cerr << "\r"
+              << std::format(
+                     "Monitoring on {:>2} channel ({} MHz), at {} {:<30}",
+                     channel + 1, freq_mhz, iface,
+                     rfmstat::get_channel_rate(current_pps, freq_mhz))
+              << std::flush;
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
 }
 

@@ -106,5 +106,4 @@ bool IfaceDev::is_rfmon() {
   return is_monitor;
 }
 
-
 }  // namespace rfmstat

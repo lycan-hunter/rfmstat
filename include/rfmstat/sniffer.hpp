@@ -12,7 +12,8 @@
 namespace rfmstat {
 class ChannelSniffer {
  public:
-  ChannelSniffer(const uint8_t& channel, const std::string& iface, const uint64_t& timeout);
+  ChannelSniffer(const uint8_t& channel, const std::string& iface,
+                 const uint64_t& timeout);
   ~ChannelSniffer();
 
   ChannelSniffer(const ChannelSniffer&) = delete;
@@ -27,7 +28,7 @@ class ChannelSniffer {
   uint8_t channel = 0;
   std::string iface;
 
-  uint64_t timeout;
+  uint32_t timeout;
 
   std::string errbuf() const { return std::string(_errbuf); }
 

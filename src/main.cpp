@@ -3,11 +3,12 @@
 #include <CLI/CLI.hpp>
 #include <array>
 #include <chrono>
-#include <thread>
 #include <format>
 #include <iostream>
+#include <thread>
 #include <utility>
 
+#include "rfmstat/formatter.hpp"
 #include "rfmstat/iface_device.hpp"
 #include "rfmstat/sniffer.hpp"
 #include "rfmstat/utils.hpp"
@@ -50,7 +51,7 @@ int main(int argc, char** argv) {
     pcap_freealldevs(ifaces_list);
 
     if (!is_iface_valid) {
-      std::cerr << std::format("Failed to locale interface '{}' in system",
+      std::cerr << std::format("Failed to locate interface '{}' in system",
                                iface)
                 << std::endl;
       return 1;
@@ -74,14 +75,15 @@ int main(int argc, char** argv) {
 
   rfmstat::IfaceDev iface_dev;
   iface_dev.if_index = iface_dev.get_if_index(iface);
-  if (!iface_dev.is_rfmon()){
-    std::cerr << std::format("Current Wi-Fi adapter ({}) is not on monitore mode", iface) << std::endl;
+  if (!iface_dev.is_rfmon()) {
+    std::cerr << std::format(
+                     "Current Wi-Fi adapter ({}) is not in monitore mode",
+                     iface)
+              << std::endl;
     return 1;
   }
 
-  
   rfmstat::ChannelSniffer sniffer(channels, iface, timeout);
-
 
   // sniffer.channel = channels;
   try {
@@ -100,13 +102,17 @@ int main(int argc, char** argv) {
     // iface)
     // << std::endl;
     sniffer.channel = i;
-    uint32_t mhz_channel = rfmstat::channel_to_mhz(i+1);
+    uint32_t mhz_channel = rfmstat::channel_to_mhz(i + 1);
     iface_dev.set_rfmon_channel(mhz_channel);
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    std::cout << std::format("Monitoring on {} channel ({} MHz), at {}", i+1, mhz_channel, iface) << std::endl;
-    sniffer.sniff_current_channel();
-
+    // TODO: final with incorrect channel exception
+    try {
+      sniffer.sniff_current_channel();
+    } catch (std::invalid_argument& e) {
+      std::cerr << e.what() << std::endl;
+    }
   }
+  std::cerr << std::endl;
 
   for (int i = 0; i < channels; i++) {
     const auto& cinfo = sniffer.channels_info()[i];
@@ -114,20 +120,20 @@ int main(int argc, char** argv) {
       hidden_channels++;
       continue;
     } else {
-      std::cout << std::format(
-                       "Channel: {}, packets captured: {}, sum lenght: {}",
-                       i + 1, cinfo.packets, cinfo.length)
+      uint32_t freq_mhz = rfmstat::channel_to_mhz(i + 1);
+      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", i + 1,
+                               freq_mhz)
+                << std::endl;
+      std::cout << rfmstat::get_channel_audit(sniffer.channels_info()[i],
+                                              timeout)
                 << std::endl;
     }
   }
 
-  if (hidden_channels != 0) {
-    std::cout
-        << std::format(
-               "{} channels hidden, (no packets captured on this channels)...",
-               hidden_channels)
-        << std::endl;
+  if (hidden_channels > 0) {
+    std::cout << std::format("{} channel(s) hidden, (no packets captured)",
+                             hidden_channels)
+              << std::endl;
   }
-
   return 0;
 }
