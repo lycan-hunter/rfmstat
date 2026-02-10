@@ -50,7 +50,7 @@ uint32_t IfaceDev::get_if_index(const std::string& iface) {
 void IfaceDev::set_rfmon_channel(const uint32_t& freq_mhz) {
   if (this->if_index == 0) {
     throw std::logic_error(
-        "interface iindex is not set. Call get_if_index() first.");
+        "interface index is not set. Call get_if_index() first.");
   }
 
   struct nl_msg* msg = nlmsg_alloc();
@@ -103,6 +103,7 @@ bool IfaceDev::is_rfmon() {
   int err = nl_send_sync(_sk, msg);
   if (err < 0) return false;
 
+  // nl_socket_modify_cb(_sk, NL_CB_VALID, NL_CB_DEFAULT, NULL, NULL);
   return is_monitor;
 }
 

@@ -1,10 +1,13 @@
-//TODO: Catching exception: operation not permitted, invalid channel and other...
+// TODO: Catching exception: operation not permitted, invalid channel and
+// other...
 #include <pcap.h>
+
 #include <CLI/CLI.hpp>
 #include <array>
 #include <chrono>
 #include <format>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include <utility>
 
@@ -73,9 +76,19 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  rfmstat::IfaceDev iface_dev;
-  iface_dev.if_index = iface_dev.get_if_index(iface);
-  if (!iface_dev.is_rfmon()) {
+  std::unique_ptr<rfmstat::IfaceDev> iface_dev = nullptr;
+  std::unique_ptr<rfmstat::ChannelSniffer> sniffer =
+      std::make_unique<rfmstat::ChannelSniffer>(channels, iface, timeout);
+
+  try {
+    iface_dev = std::make_unique<rfmstat::IfaceDev>();
+  } catch (std::runtime_error& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
+  }
+
+  iface_dev->if_index = iface_dev->get_if_index(iface);
+  if (!iface_dev->is_rfmon()) {
     std::cerr << std::format(
                      "Current Wi-Fi adapter ({}) is not in monitore mode",
                      iface)
@@ -83,39 +96,53 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  rfmstat::ChannelSniffer sniffer(channels, iface, timeout);
-
-  // sniffer.channel = channels;
+  // sniffer->channel = channels;
   try {
-    sniffer.start_sniff();
-    if (!sniffer.is_sniffing())
-      throw std::runtime_error("failed to create sniffer");
+    sniffer->start_sniff();
+    if (!sniffer->is_sniffing()) {
+      std::cerr << "Failed to create sniffer" << std::endl;
+      return 1;
+    }
   } catch (std::exception& e) {
     std::cerr << std::format("Failed to start sniffing: {}", e.what())
               << std::endl;
   }
 
   uint64_t hidden_channels = 0;
+  try {
+    // For some reason, the first channel change call is ignored, so ballast has
+    // been added
+    iface_dev->set_rfmon_channel(rfmstat::channel_to_mhz(1));
+  } catch (std::exception& e) {
+    std::cerr << e.what() << ": ballast was worked !" << std::endl;
+    return 1;
+  }
 
   for (int i = 0; i < channels; i++) {
-    // std::cout << std::format("Monitoring on channel {}, interface {}", i,
-    // iface)
-    // << std::endl;
-    sniffer.channel = i;
-    uint32_t mhz_channel = rfmstat::channel_to_mhz(i + 1);
-    iface_dev.set_rfmon_channel(mhz_channel);
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    // TODO: final with incorrect channel exception
-    try {
-      sniffer.sniff_current_channel();
-    } catch (std::invalid_argument& e) {
-      std::cerr << e.what() << std::endl;
+    sniffer->channel = i;
+    try{
+      uint32_t mhz_channel = rfmstat::channel_to_mhz(i + 1);
+    } catch (std::invalid_argument& e){
+      std::cerr << "\r" << e.what() << std::endl;
+      continue;
     }
+
+    // Trying to change channel
+    try {
+      iface_dev->set_rfmon_channel(mhz_channel);
+    } catch (const std::runtime_error& e) {
+      std::cerr << std::format("{}, try run with root rights (sudo)", e.what())
+                << std::endl;
+      return 1;
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    sniffer->sniff_current_channel();
   }
   std::cerr << std::endl;
 
   for (int i = 0; i < channels; i++) {
-    const auto& cinfo = sniffer.channels_info()[i];
+    const auto& cinfo = sniffer->channels_info()[i];
     if (cinfo.packets == 0) {
       hidden_channels++;
       continue;
@@ -124,7 +151,7 @@ int main(int argc, char** argv) {
       std::cout << std::format("Channel {:>2} ({:4} MHz) report:", i + 1,
                                freq_mhz)
                 << std::endl;
-      std::cout << rfmstat::get_channel_audit(sniffer.channels_info()[i],
+      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[i],
                                               timeout)
                 << std::endl;
     }
