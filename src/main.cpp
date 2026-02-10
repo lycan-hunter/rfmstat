@@ -6,6 +6,7 @@
 #endif
 
 #include <CLI/CLI.hpp>
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <format>
@@ -14,6 +15,7 @@
 #include <thread>
 #include <utility>
 
+#include "rfmstat/banner.hpp"
 #include "rfmstat/formatter.hpp"
 #include "rfmstat/iface_device.hpp"
 #include "rfmstat/sniffer.hpp"
@@ -22,16 +24,22 @@
 int main(int argc, char** argv) {
   char errbuf[PCAP_ERRBUF_SIZE];
 
-  CLI::App app{"RFMstat -- Wi-Fi statistics collector"};
+  CLI::App app{"RFMstat -- Wi-Fi broadcast passive statistics collector"};
 
   std::string iface = "";
-  uint8_t channels = 14;
+  std::string raw_channels;
   uint32_t timeout = 5000;
 
-  app.add_option("-i,--iface", iface, "Network interface to sniff");
-  app.add_option("-c,--channels", channels, "Quantity of available channels");
-  app.add_option("-t,--timeout", timeout,
-                 "Timeout in milliseconds to sniff every channel");
+  app.add_option("-i,--iface", iface, "Network interface to monitor");
+  app.add_option("-c,--channels", raw_channels, "Range of channels to scan");
+  app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
+
+  for (int i = 1; i < argc; ++i) {
+    if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help") {
+      std::cerr << kBanner << std::endl;
+      break;
+    }
+  }
 
   CLI11_PARSE(app, argc, argv);
 
@@ -64,13 +72,20 @@ int main(int argc, char** argv) {
     }
   }
 
+  // Parsing channels
+  auto channels = rfmstat::parse_raw_channels(raw_channels);
   // Validating channels
-  if (channels == 0 || channels > 233) {
-    std::cerr << std::format(
-                     "Incorrect channels range '{}', format: from 1 to 233",
-                     channels)
-              << std::endl;
-    return 1;
+  if (!std::includes(rfmstat::kCh2_4GHz.begin(), rfmstat::kCh2_4GHz.end(),
+                     channels.begin(), channels.end())) {
+    if (!std::includes(rfmstat::kCh5GHz.begin(), rfmstat::kCh5GHz.end(),
+                       channels.begin(), channels.end())) {
+      if (!std::includes(rfmstat::kCh6GHz.begin(), rfmstat::kCh6GHz.end(),
+                         channels.begin(), channels.end())) {
+        std::cerr << std::format("Invalid channels range '{}'", raw_channels)
+                  << std::endl;
+        return 1;
+      }
+    }
   }
 
   // Validating timeout
@@ -85,12 +100,12 @@ int main(int argc, char** argv) {
 
 // Hint
 #ifndef _WIN32
-  const std::string hint =
+  const std::string kHint =
       geteuid() == 0 ? "" : ", try run with root rights (sudo)";
 #endif
 
 #ifdef _WIN32
-  const std::string hint = ", try run with admin rights";
+  const std::string kHint = ", try run with admin rights";
 #endif
 
   try {
@@ -133,11 +148,11 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  for (int i = 0; i < channels; i++) {
-    sniffer->channel = i;
+  for (auto ch : channels) {
+    sniffer->channel = ch - 1;
     uint32_t mhz_channel = 0;
     try {
-      mhz_channel = rfmstat::channel_to_mhz(i + 1);
+      mhz_channel = rfmstat::channel_to_mhz(ch);
     } catch (std::invalid_argument& e) {
       std::cerr << "\r" << e.what()
                 << "                                           ";
@@ -149,11 +164,11 @@ int main(int argc, char** argv) {
     try {
       iface_dev->set_rfmon_channel(mhz_channel);
     } catch (const std::runtime_error& e) {
-      if (i == 0) {
-        std::cerr << std::format("{}{}", e.what(), hint) << std::endl;
+      if (ch == 1) {
+        std::cerr << std::format("{}{}", e.what(), kHint) << std::endl;
 
       } else {
-        std::cerr << std::endl << std::format("{}{}", e.what(), hint);
+        std::cerr << std::endl << std::format("{}{}", e.what(), kHint);
       }
       break;
     }
@@ -163,23 +178,23 @@ int main(int argc, char** argv) {
   }
   std::cerr << std::endl;
 
-  for (int i = 0; i < channels; i++) {
-    const auto& cinfo = sniffer->channels_info()[i];
+  for (auto ch : channels) {
+    const auto& cinfo = sniffer->channels_info()[ch-1];
     if (cinfo.packets == 0) {
       hidden_channels++;
       continue;
     } else {
       uint32_t freq_mhz = 0;
       try {
-        freq_mhz = rfmstat::channel_to_mhz(i + 1);
+        freq_mhz = rfmstat::channel_to_mhz(ch);
       } catch (std::invalid_argument& e) {
         hidden_channels++;
         continue;
       }
-      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", i + 1,
+      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch,
                                freq_mhz)
                 << std::endl;
-      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[i],
+      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[ch-1],
                                               timeout)
                 << std::endl;
     }
