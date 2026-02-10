@@ -1,6 +1,10 @@
 // TODO: Wright channles parser, man info and README.md
 #include <pcap.h>
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
 #include <CLI/CLI.hpp>
 #include <array>
 #include <chrono>
@@ -79,6 +83,16 @@ int main(int argc, char** argv) {
   std::unique_ptr<rfmstat::ChannelSniffer> sniffer =
       std::make_unique<rfmstat::ChannelSniffer>(channels, iface, timeout);
 
+// Hint
+#ifndef _WIN32
+  const std::string hint =
+      geteuid() == 0 ? "" : ", try run with root rights (sudo)";
+#endif
+
+#ifdef _WIN32
+  const std::string hint = ", try run with admin rights";
+#endif
+
   try {
     iface_dev = std::make_unique<rfmstat::IfaceDev>();
   } catch (std::runtime_error& e) {
@@ -113,7 +127,9 @@ int main(int argc, char** argv) {
     // been added
     iface_dev->set_rfmon_channel(rfmstat::channel_to_mhz(1));
   } catch (std::exception& e) {
-    std::cerr << e.what() << ": ballast was worked ! Delete 118 and 119 strings in main.cpp" << std::endl;
+    std::cerr << e.what()
+              << ": ballast was worked ! Delete 118 and 119 strings in main.cpp"
+              << std::endl;
     return 1;
   }
 
@@ -133,12 +149,11 @@ int main(int argc, char** argv) {
     try {
       iface_dev->set_rfmon_channel(mhz_channel);
     } catch (const std::runtime_error& e) {
-      if (i == 0){
-      std::cerr << std::format("{}, try run with root rights (sudo)", e.what())
-                << std::endl;
+      if (i == 0) {
+        std::cerr << std::format("{}{}", e.what(), hint) << std::endl;
 
       } else {
-      std::cerr << std::endl << std::format("{}, try run with root rights (sudo)", e.what());
+        std::cerr << std::endl << std::format("{}{}", e.what(), hint);
       }
       break;
     }
