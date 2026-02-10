@@ -1,5 +1,4 @@
-// TODO: Catching exception: operation not permitted, invalid channel and
-// other...
+// TODO: Wright channles parser, man info and README.md
 #include <pcap.h>
 
 #include <CLI/CLI.hpp>
