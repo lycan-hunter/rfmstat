@@ -1,4 +1,5 @@
 #include "rfmstat/utils.hpp"
+#include "rfmstat/channel_data.hpp"
 
 #include <pcap.h>
 
@@ -63,13 +64,33 @@ bool interface_exists(const std::string& iface) {
   return found;
 }
 
-uint32_t channel_to_mhz(const uint8_t& channel) {
-  if (channel >= 1 && channel <= 13) return 2407 + (channel * 5);
-  if (channel == 14) return 2484;
-  if (channel >= 36 && channel <= 165) return 5000 + (channel * 5);
+uint32_t channel_to_mhz(const uint8_t channel, const rfmstat::WiFiFreqs& freq) {
+    switch (freq) {
+        case rfmstat::WiFiFreqs::FREQ_24GHz:
+            if (channel >= 1 && channel <= 13) {
+                return 2407 + (channel * 5);
+            }
+            if (channel == 14) {
+                return 2484; // Канал 14 в 2.4 ГГц стоит особняком
+            }
+            break;
 
-  throw std::invalid_argument(
-      std::format("Invalid Wi-Fi channel: {}", std::to_string(channel)));
+        case rfmstat::WiFiFreqs::FREQ_5GHz:
+            if (channel >= 32 && channel <= 177) {
+                return 5000 + (channel * 5);
+            }
+            break;
+
+        case rfmstat::WiFiFreqs::FREQ_6GHz:
+            if (channel >= 1 && channel <= 233) {
+                return 5940 + (channel * 5);
+            }
+            break;
+    }
+    throw std::invalid_argument(
+        std::format("Invalid Wi-Fi channel {} for the selected band", channel)
+    );
 }
+
 
 }  // namespace rfmstat

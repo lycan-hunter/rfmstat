@@ -5,13 +5,14 @@
 #include <string>
 #include <vector>
 #include <cstdint>
+#include "rfmstat/channel_data.hpp"
 
 namespace rfmstat {
 std::vector<uint8_t> parse_raw_channels(const std::string& input);
 
 bool interface_exists(const std::string& iface);
 
-uint32_t channel_to_mhz(const uint8_t& channel);
+uint32_t channel_to_mhz(const uint8_t& channel, const rfmstat::WiFiFreqs& freq);
 
 const std::vector<uint8_t> kCh2_4GHz = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
@@ -19,7 +20,7 @@ const std::vector<uint8_t> kCh5GHz = {32,  36,  40,  44,  48,  52,  56,  60,  64
                             104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
                             144, 149, 153, 157, 161, 165, 169, 173, 177};
 
-const std::vector<int> kCh6GHz = {
+const std::vector<uint8_t> kCh6GHz = {
     1,   5,   9,   13,  17,  21,  25,  29,  33,  37,  41,  45,  49,  53,  57,
     61,  65,  69,  73,  77,  81,  85,  89,  93,  97,  101, 105, 109, 113, 117,
     121, 125, 129, 133, 137, 141, 145, 149, 153, 157, 161, 165, 169, 173, 177,

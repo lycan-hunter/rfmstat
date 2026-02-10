@@ -8,11 +8,12 @@
 
 #include "rfmstat/formatter.hpp"
 #include "rfmstat/utils.hpp"
+#include "rfmstat/channel_data.hpp"
 
 namespace rfmstat {
 ChannelSniffer::ChannelSniffer(const uint8_t& channel, const std::string& iface,
                                const uint64_t& timeout) {
-  if (channel == 0 || channel > 233) {
+  if (channel > 233) {
     throw std::invalid_argument(
         std::format("Incorrect channel specified ('{}') !", channel));
   }
@@ -179,7 +180,7 @@ void ChannelSniffer::sniff_current_channel() {
           static_cast<double>(_channels_info[channel].packets) / seconds;
     }
 
-    uint32_t freq_mhz = rfmstat::channel_to_mhz(channel + 1);
+    uint32_t freq_mhz = rfmstat::channel_to_mhz(channel, rfmstat::WiFiFreqs::);
 
     std::cerr << "\r"
               << std::format(

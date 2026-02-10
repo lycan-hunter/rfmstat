@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <unordered_map>
 
 #include "rfmstat/channel_data.hpp"
 
@@ -32,7 +33,7 @@ class ChannelSniffer {
 
   std::string errbuf() const { return std::string(_errbuf); }
 
-  const std::array<rfmstat::ChannelData, 234>& channels_info() const {
+  const std::unordered_map<uint16_t, rfmstat::ChannelData>& channels_info() const {
     return _channels_info;
   }
 
@@ -42,7 +43,7 @@ class ChannelSniffer {
   void handle_packet(const struct pcap_pkthdr* header, const u_char* bytes);
 
  private:
-  std::array<rfmstat::ChannelData, 234> _channels_info;
+  std::unordered_map<uint16_t, rfmstat::ChannelData> _channels_info;
 
   char _errbuf[PCAP_ERRBUF_SIZE] = {0};
   bool _is_sniffing = false;

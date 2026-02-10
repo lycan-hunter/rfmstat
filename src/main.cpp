@@ -27,11 +27,21 @@ int main(int argc, char** argv) {
   CLI::App app{"RFMstat -- Wi-Fi broadcast passive statistics collector"};
 
   std::string iface = "";
-  std::string raw_channels;
+  std::string raw_channels_2;
+  std::string raw_channels_5;
+  std::string raw_channels_6;
+
+  std::vector<rfmstat::ChannelRange> channels;
+  channels[0].freq = rfmstat::WiFiFreqs::FREQ_24GHz;
+  channels[1].freq = rfmstat::WiFiFreqs::FREQ_5GHz;
+  channels[2].freq = rfmstat::WiFiFreqs::FREQ_6GHz;
+
   uint32_t timeout = 5000;
 
   app.add_option("-i,--iface", iface, "Network interface to monitor");
-  app.add_option("-c,--channels", raw_channels, "Range of channels to scan");
+  app.add_option("-2,--2_4ghz", raw_channels_2, "Range of channels to scan (2.4 GHz)");
+  app.add_option("-5,--5ghz", raw_channels_5, "Range of channels to scan (5 GHz)");
+  app.add_option("-6,--6ghz", raw_channels_6, "Range of channels to scan (6 GHz)");
   app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
 
   for (int i = 1; i < argc; ++i) {
@@ -73,7 +83,10 @@ int main(int argc, char** argv) {
   }
 
   // Parsing channels
-  auto channels = rfmstat::parse_raw_channels(raw_channels);
+  channels[0].channels_range = rfmstat::parse_raw_channels(raw_channels_2);
+  channels[1].channels_range = rfmstat::parse_raw_channels(raw_channels_5);
+  channels[2].channels_range = rfmstat::parse_raw_channels(raw_channels_6);
+
   // Validating channels
   if (!std::includes(rfmstat::kCh2_4GHz.begin(), rfmstat::kCh2_4GHz.end(),
                      channels.begin(), channels.end())) {
@@ -96,7 +109,7 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<rfmstat::IfaceDev> iface_dev = nullptr;
   std::unique_ptr<rfmstat::ChannelSniffer> sniffer =
-      std::make_unique<rfmstat::ChannelSniffer>(channels, iface, timeout);
+      std::make_unique<rfmstat::ChannelSniffer>(1, iface, timeout);
 
 // Hint
 #ifndef _WIN32

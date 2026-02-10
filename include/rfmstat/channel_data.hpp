@@ -1,8 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 namespace rfmstat {
+
+enum class WiFiFreqs : uint16_t {
+  FREQ_24GHz = 2400,
+  FREQ_5GHz = 5000,
+  FREQ_6GHz = 6000,
+};
+
 enum class FrameType : uint8_t {
   // Management (Type 00)
   MgmtAssocReq = 0x00,
@@ -47,6 +55,11 @@ struct ChannelData {
   uint64_t ctrl_ba_req = 0;  // Block Ack Request
   uint64_t mgmt_probe_res = 0;
   uint64_t mgmt_action = 0;
+};
+
+struct ChannelRange {
+  std::vector<uint8_t> channels_range;
+  WiFiFreqs freq;
 };
 
 }  // namespace rfmstat
