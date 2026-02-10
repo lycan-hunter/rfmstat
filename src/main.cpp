@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   // Validating channels
   if (channels == 0 || channels > 233) {
     std::cerr << std::format(
-                     "Incorrect channels range ('{}'), format: from 1 to 233",
+                     "Incorrect channels range '{}', format: from 1 to 233",
                      channels)
               << std::endl;
     return 1;
@@ -96,7 +96,6 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // sniffer->channel = channels;
   try {
     sniffer->start_sniff();
     if (!sniffer->is_sniffing()) {
@@ -109,21 +108,25 @@ int main(int argc, char** argv) {
   }
 
   uint64_t hidden_channels = 0;
+  uint64_t incorrect_channels = 0;
   try {
     // For some reason, the first channel change call is ignored, so ballast has
     // been added
     iface_dev->set_rfmon_channel(rfmstat::channel_to_mhz(1));
   } catch (std::exception& e) {
-    std::cerr << e.what() << ": ballast was worked !" << std::endl;
+    std::cerr << e.what() << ": ballast was worked ! Delete 118 and 119 strings in main.cpp" << std::endl;
     return 1;
   }
 
   for (int i = 0; i < channels; i++) {
     sniffer->channel = i;
-    try{
-      uint32_t mhz_channel = rfmstat::channel_to_mhz(i + 1);
-    } catch (std::invalid_argument& e){
-      std::cerr << "\r" << e.what() << std::endl;
+    uint32_t mhz_channel = 0;
+    try {
+      mhz_channel = rfmstat::channel_to_mhz(i + 1);
+    } catch (std::invalid_argument& e) {
+      std::cerr << "\r" << e.what()
+                << "                                           ";
+      ++incorrect_channels;
       continue;
     }
 
@@ -131,9 +134,14 @@ int main(int argc, char** argv) {
     try {
       iface_dev->set_rfmon_channel(mhz_channel);
     } catch (const std::runtime_error& e) {
+      if (i == 0){
       std::cerr << std::format("{}, try run with root rights (sudo)", e.what())
                 << std::endl;
-      return 1;
+
+      } else {
+      std::cerr << std::endl << std::format("{}, try run with root rights (sudo)", e.what());
+      }
+      break;
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -147,7 +155,13 @@ int main(int argc, char** argv) {
       hidden_channels++;
       continue;
     } else {
-      uint32_t freq_mhz = rfmstat::channel_to_mhz(i + 1);
+      uint32_t freq_mhz = 0;
+      try {
+        freq_mhz = rfmstat::channel_to_mhz(i + 1);
+      } catch (std::invalid_argument& e) {
+        hidden_channels++;
+        continue;
+      }
       std::cout << std::format("Channel {:>2} ({:4} MHz) report:", i + 1,
                                freq_mhz)
                 << std::endl;
@@ -157,9 +171,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  if (hidden_channels > 0) {
+  if (hidden_channels - incorrect_channels > 0) {
     std::cout << std::format("{} channel(s) hidden, (no packets captured)",
-                             hidden_channels)
+                             hidden_channels - incorrect_channels)
               << std::endl;
   }
   return 0;
