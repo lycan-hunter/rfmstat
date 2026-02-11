@@ -55,6 +55,9 @@ struct ChannelData {
   uint64_t ctrl_ba_req = 0;  // Block Ack Request
   uint64_t mgmt_probe_res = 0;
   uint64_t mgmt_action = 0;
+
+  // If true -- will not be ignored in report
+  bool ballast_channel = true;
 };
 
 struct ChannelRange {

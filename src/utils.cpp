@@ -13,38 +13,54 @@
 namespace rfmstat {
 
 std::vector<uint8_t> parse_raw_channels(const std::string& input) {
-    std::regex full_format_re(R"(^(\d+(-\d+)?)(,\s*\d+(-\d+)?)*$)");
-    if (input.empty() || !std::regex_match(input, full_format_re)) {
-        throw std::invalid_argument("Invalid format. Use: 1-11,13,14");
+    if (input.empty()) {
+        throw std::invalid_argument("Empty channel list");
     }
-    std::set<int> unique_channels;
-    std::regex part_re(R"((\d+)(?:-(\d+))?)");
+
+    static const std::regex full_check_re(R"(^[\d,\-\s]+$)");
+    if (!std::regex_match(input, full_check_re)) {
+        throw std::invalid_argument("Invalid characters in string: " + input);
+    }
+
+    std::set<uint8_t> unique_channels;
+    static const std::regex part_re(R"((\d+)(?:-(\d+))?)");
     
     auto it = std::sregex_iterator(input.begin(), input.end(), part_re);
     auto end = std::sregex_iterator();
 
+    if (it == end) {
+        throw std::invalid_argument("No valid channels found in: " + input);
+    }
+
     for (; it != end; ++it) {
         std::smatch match = *it;
+        
         try {
             int start = std::stoi(match[1].str());
             
-            if (match[2].matched) {
-                int end_range = std::stoi(match[2].str());
-                if (start > end_range) {
-                    throw std::invalid_argument("Reverse range: " + match.str());
+            if (match[2].matched) { 
+                int stop = std::stoi(match[2].str());
+                
+                if (start > stop) {
+                    throw std::invalid_argument("Reverse range not allowed: " + match.str());
                 }
-                for (int i = start; i <= end_range; ++i) {
-                    unique_channels.insert(i);
+                if (stop > 255) throw std::out_of_range("");
+
+                for (int i = start; i <= stop; ++i) {
+                    unique_channels.insert(static_cast<uint8_t>(i));
                 }
             } else {
-                unique_channels.insert(start);
+                if (start > 255) throw std::out_of_range("");
+                unique_channels.insert(static_cast<uint8_t>(start));
             }
         } catch (const std::out_of_range&) {
-            throw std::invalid_argument("Channel number out of integer range");
+            throw std::invalid_argument("Channel number out of range (0-255): " + match.str());
         }
     }
+
     return {unique_channels.begin(), unique_channels.end()};
 }
+
 
 bool interface_exists(const std::string& iface) {
   pcap_if_t* alldevs;
@@ -71,7 +87,7 @@ uint32_t channel_to_mhz(const uint8_t channel, const rfmstat::WiFiFreqs& freq) {
                 return 2407 + (channel * 5);
             }
             if (channel == 14) {
-                return 2484; // Канал 14 в 2.4 ГГц стоит особняком
+                return 2484;
             }
             break;
 

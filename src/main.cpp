@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
   CLI::App app{"RFMstat -- Wi-Fi broadcast passive statistics collector"};
 
   std::string iface = "";
-  std::string raw_channels_2;
+  std::string raw_channels_24;
   std::string raw_channels_5;
   std::string raw_channels_6;
 
@@ -39,9 +39,12 @@ int main(int argc, char** argv) {
   uint32_t timeout = 5000;
 
   app.add_option("-i,--iface", iface, "Network interface to monitor");
-  app.add_option("-2,--2_4ghz", raw_channels_2, "Range of channels to scan (2.4 GHz)");
-  app.add_option("-5,--5ghz", raw_channels_5, "Range of channels to scan (5 GHz)");
-  app.add_option("-6,--6ghz", raw_channels_6, "Range of channels to scan (6 GHz)");
+  app.add_option("-2,--2_4ghz", raw_channels_24,
+                 "Range of channels to scan (2.4 GHz)");
+  app.add_option("-5,--5ghz", raw_channels_5,
+                 "Range of channels to scan (5 GHz)");
+  app.add_option("-6,--6ghz", raw_channels_6,
+                 "Range of channels to scan (6 GHz)");
   app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
 
   for (int i = 1; i < argc; ++i) {
@@ -83,22 +86,25 @@ int main(int argc, char** argv) {
   }
 
   // Parsing channels
-  channels[0].channels_range = rfmstat::parse_raw_channels(raw_channels_2);
+  channels[0].channels_range = rfmstat::parse_raw_channels(raw_channels_24);
   channels[1].channels_range = rfmstat::parse_raw_channels(raw_channels_5);
   channels[2].channels_range = rfmstat::parse_raw_channels(raw_channels_6);
 
   // Validating channels
   if (!std::includes(rfmstat::kCh2_4GHz.begin(), rfmstat::kCh2_4GHz.end(),
                      channels.begin(), channels.end())) {
-    if (!std::includes(rfmstat::kCh5GHz.begin(), rfmstat::kCh5GHz.end(),
-                       channels.begin(), channels.end())) {
-      if (!std::includes(rfmstat::kCh6GHz.begin(), rfmstat::kCh6GHz.end(),
-                         channels.begin(), channels.end())) {
-        std::cerr << std::format("Invalid channels range '{}'", raw_channels)
-                  << std::endl;
-        return 1;
-      }
-    }
+    std::cerr << "Incorrect 6GHz channels range" << std::endl;
+    return 1;
+  }
+  if (!std::includes(rfmstat::kCh5GHz.begin(), rfmstat::kCh5GHz.end(),
+                     channels.begin(), channels.end())) {
+    std::cerr << "Incorrect 6GHz channels range" << std::endl;
+    return 1;
+  }
+  if (!std::includes(rfmstat::kCh6GHz.begin(), rfmstat::kCh6GHz.end(),
+                     channels.begin(), channels.end())) {
+    std::cerr << "Incorrect 6GHz channels range" << std::endl;
+    return 1;
   }
 
   // Validating timeout
@@ -192,7 +198,7 @@ int main(int argc, char** argv) {
   std::cerr << std::endl;
 
   for (auto ch : channels) {
-    const auto& cinfo = sniffer->channels_info()[ch-1];
+    const auto& cinfo = sniffer->channels_info()[ch - 1];
     if (cinfo.packets == 0) {
       hidden_channels++;
       continue;
@@ -204,10 +210,9 @@ int main(int argc, char** argv) {
         hidden_channels++;
         continue;
       }
-      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch,
-                               freq_mhz)
+      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch, freq_mhz)
                 << std::endl;
-      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[ch-1],
+      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[ch - 1],
                                               timeout)
                 << std::endl;
     }

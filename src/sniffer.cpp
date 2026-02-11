@@ -6,13 +6,14 @@
 #include <stdexcept>
 #include <thread>
 
+#include "rfmstat/channel_data.hpp"
 #include "rfmstat/formatter.hpp"
 #include "rfmstat/utils.hpp"
-#include "rfmstat/channel_data.hpp"
 
 namespace rfmstat {
 ChannelSniffer::ChannelSniffer(const uint8_t& channel, const std::string& iface,
-                               const uint64_t& timeout) {
+                               const uint64_t& timeout)
+    : _channels_info_24(233), _channels_info_5(233), _channels_info_6(233) {
   if (channel > 233) {
     throw std::invalid_argument(
         std::format("Incorrect channel specified ('{}') !", channel));
@@ -91,10 +92,11 @@ void ChannelSniffer::handle_packet(const struct pcap_pkthdr* header,
   uint8_t type_subtype = (wlan_frame[0] >> 2);
   FrameType frame = static_cast<FrameType>(type_subtype);
 
-  auto& stats = _channels_info[this->channel];
+  auto& current_channels_info = _get_mut_channels_info();
+  auto& stats = current_channels_info[this->channel];
 
-  _channels_info[this->channel].packets++;
-  _channels_info[this->channel].length += header->len;
+  current_channels_info[this->channel].packets++;
+  current_channels_info[this->channel].length += header->len;
 
   switch (frame) {
     // --- Management ---
@@ -161,6 +163,8 @@ void ChannelSniffer::sniff_current_channel() {
   }
 
   auto start = std::chrono::steady_clock::now();
+  auto& current_channels_info = _get_mut_channels_info();
+  current_channels_info[channel].ballast_channel = false;
 
   while (true) {
     auto now = std::chrono::steady_clock::now();
@@ -177,10 +181,10 @@ void ChannelSniffer::sniff_current_channel() {
 
     if (seconds > 0.01) {
       current_pps =
-          static_cast<double>(_channels_info[channel].packets) / seconds;
+          static_cast<double>(current_channels_info[channel].packets) / seconds;
     }
 
-    uint32_t freq_mhz = rfmstat::channel_to_mhz(channel, rfmstat::WiFiFreqs::);
+    uint32_t freq_mhz = rfmstat::channel_to_mhz(channel, freq_type);
 
     std::cerr << "\r"
               << std::format(
