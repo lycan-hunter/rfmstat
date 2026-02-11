@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "rfmstat/channel_data.hpp"
 
@@ -34,19 +34,19 @@ class ChannelSniffer {
 
   std::string errbuf() const { return std::string(_errbuf); }
 
-  const std::vector<ChannelData>& channels_info(const WiFiFreqs& ftype) const {
-    if (ftype == WiFiFreqs::FREQ_24GHz){
-    return _channels_info_24;
-  } else if (ftype == WiFiFreqs::FREQ_5GHz){
+  const std::vector<ChannelData>& channels_info() const {
+    switch (freq_type) {
+      case WiFiFreqs::FREQ_24GHz:
+        return _channels_info_24;
+      case WiFiFreqs::FREQ_5GHz:
+        return _channels_info_5;
+      case WiFiFreqs::FREQ_6GHz:
+        return _channels_info_6;
 
-    return _channels_info_5;
-  } else if (ftype == WiFiFreqs::FREQ_6GHz){
-
-    return _channels_info_6;
-  } else {
-    throw std::invalid_argument("Cannot get channels info for, incorrect freq type");
+        throw std::invalid_argument(
+            "Cannot get channels info for, incorrect freq type");
+    }
   }
-}
 
  private:
   static void pcap_callback(u_char* user_data,
@@ -55,23 +55,22 @@ class ChannelSniffer {
   void handle_packet(const struct pcap_pkthdr* header, const u_char* bytes);
 
   std::vector<ChannelData>& _get_mut_channels_info() {
-     if (freq_type == WiFiFreqs::FREQ_24GHz){
-    return _channels_info_24;
-  } else if (freq_type == WiFiFreqs::FREQ_5GHz){
+    switch (freq_type) {
+      case WiFiFreqs::FREQ_24GHz:
+        return _channels_info_24;
+      case WiFiFreqs::FREQ_5GHz:
+        return _channels_info_5;
+      case WiFiFreqs::FREQ_6GHz:
+        return _channels_info_6;
 
-    return _channels_info_5;
-  } else if (freq_type == WiFiFreqs::FREQ_6GHz){
-    return _channels_info_6;
-  } else {
-    throw std::invalid_argument("Cannot get channels info for, incorrect freq type");
-  } 
+        throw std::invalid_argument(
+            "Cannot get channels info for, incorrect freq type");
+    }
   }
-  
+
   std::vector<ChannelData> _channels_info_24;
   std::vector<ChannelData> _channels_info_5;
   std::vector<ChannelData> _channels_info_6;
-  
-
 
   char _errbuf[PCAP_ERRBUF_SIZE] = {0};
   bool _is_sniffing = false;

@@ -1,4 +1,4 @@
-// TODO: Wright channles parser, man info and README.md
+// TODO: Wright analyzer part, man info and README.md
 #include <pcap.h>
 
 #ifndef _WIN32
@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "rfmstat/banner.hpp"
+#include "rfmstat/channel_data.hpp"
 #include "rfmstat/formatter.hpp"
 #include "rfmstat/iface_device.hpp"
 #include "rfmstat/sniffer.hpp"
@@ -31,10 +32,10 @@ int main(int argc, char** argv) {
   std::string raw_channels_5;
   std::string raw_channels_6;
 
-  std::vector<rfmstat::ChannelRange> channels;
-  channels[0].freq = rfmstat::WiFiFreqs::FREQ_24GHz;
-  channels[1].freq = rfmstat::WiFiFreqs::FREQ_5GHz;
-  channels[2].freq = rfmstat::WiFiFreqs::FREQ_6GHz;
+  std::array<rfmstat::ChannelRange, 3> all_freqs_channels;
+  all_freqs_channels[0].freq = rfmstat::WiFiFreqs::FREQ_24GHz;
+  all_freqs_channels[1].freq = rfmstat::WiFiFreqs::FREQ_5GHz;
+  all_freqs_channels[2].freq = rfmstat::WiFiFreqs::FREQ_6GHz;
 
   uint32_t timeout = 5000;
 
@@ -86,25 +87,55 @@ int main(int argc, char** argv) {
   }
 
   // Parsing channels
-  channels[0].channels_range = rfmstat::parse_raw_channels(raw_channels_24);
-  channels[1].channels_range = rfmstat::parse_raw_channels(raw_channels_5);
-  channels[2].channels_range = rfmstat::parse_raw_channels(raw_channels_6);
+  if (raw_channels_24.empty() && raw_channels_5.empty() and
+      raw_channels_6.empty()) {
+    all_freqs_channels[0].channels_range = rfmstat::kCh2_4GHz;
+    all_freqs_channels[1].channels_range = rfmstat::kCh5GHz;
+    all_freqs_channels[2].channels_range = rfmstat::kCh6GHz;
+  } else {
+  }
+  try {
+    if (!raw_channels_24.empty()) {
+      all_freqs_channels[0].channels_range =
+          rfmstat::parse_raw_channels(raw_channels_24);
+    }
+    if (!raw_channels_5.empty()) {
+      all_freqs_channels[1].channels_range =
+          rfmstat::parse_raw_channels(raw_channels_5);
+    }
+    if (!raw_channels_6.empty()) {
+      all_freqs_channels[2].channels_range =
+          rfmstat::parse_raw_channels(raw_channels_6);
+    }
+  } catch (std::invalid_argument& e) {
+    std::cerr << e.what() << std::endl;
+    return 1;
+  }
 
   // Validating channels
-  if (!std::includes(rfmstat::kCh2_4GHz.begin(), rfmstat::kCh2_4GHz.end(),
-                     channels.begin(), channels.end())) {
-    std::cerr << "Incorrect 6GHz channels range" << std::endl;
-    return 1;
+  if (!raw_channels_24.empty()) {
+    if (!std::includes(rfmstat::kCh2_4GHz.begin(), rfmstat::kCh2_4GHz.end(),
+                       all_freqs_channels[0].channels_range.begin(),
+                       all_freqs_channels[0].channels_range.end())) {
+      std::cerr << "Incorrect 2.4 GHz channels range" << std::endl;
+      return 1;
+    }
   }
-  if (!std::includes(rfmstat::kCh5GHz.begin(), rfmstat::kCh5GHz.end(),
-                     channels.begin(), channels.end())) {
-    std::cerr << "Incorrect 6GHz channels range" << std::endl;
-    return 1;
+  if (!raw_channels_5.empty()) {
+    if (!std::includes(rfmstat::kCh5GHz.begin(), rfmstat::kCh5GHz.end(),
+                       all_freqs_channels[1].channels_range.begin(),
+                       all_freqs_channels[1].channels_range.end())) {
+      std::cerr << "Incorrect 5 GHz channels range" << std::endl;
+      return 1;
+    }
   }
-  if (!std::includes(rfmstat::kCh6GHz.begin(), rfmstat::kCh6GHz.end(),
-                     channels.begin(), channels.end())) {
-    std::cerr << "Incorrect 6GHz channels range" << std::endl;
-    return 1;
+  if (!raw_channels_6.empty()) {
+    if (!std::includes(rfmstat::kCh6GHz.begin(), rfmstat::kCh6GHz.end(),
+                       all_freqs_channels[2].channels_range.begin(),
+                       all_freqs_channels[2].channels_range.end())) {
+      std::cerr << "Incorrect 6 GHz channels range" << std::endl;
+      return 1;
+    }
   }
 
   // Validating timeout
@@ -156,71 +187,80 @@ int main(int argc, char** argv) {
 
   uint64_t hidden_channels = 0;
   uint64_t incorrect_channels = 0;
+  uint32_t all_sniffed_channels = 0;
   try {
     // For some reason, the first channel change call is ignored, so ballast has
     // been added
-    iface_dev->set_rfmon_channel(rfmstat::channel_to_mhz(1));
+    iface_dev->set_rfmon_channel(
+        rfmstat::channel_to_mhz(1, rfmstat::WiFiFreqs::FREQ_24GHz));
   } catch (std::exception& e) {
     std::cerr << e.what()
-              << ": ballast was worked ! Delete 118 and 119 strings in main.cpp"
+              << ": ballast was worked ! Checkup main.cpp"
               << std::endl;
     return 1;
   }
-
-  for (auto ch : channels) {
-    sniffer->channel = ch - 1;
-    uint32_t mhz_channel = 0;
-    try {
-      mhz_channel = rfmstat::channel_to_mhz(ch);
-    } catch (std::invalid_argument& e) {
-      std::cerr << "\r" << e.what()
-                << "                                           ";
-      ++incorrect_channels;
-      continue;
-    }
-
-    // Trying to change channel
-    try {
-      iface_dev->set_rfmon_channel(mhz_channel);
-    } catch (const std::runtime_error& e) {
-      if (ch == 1) {
-        std::cerr << std::format("{}{}", e.what(), kHint) << std::endl;
-
-      } else {
-        std::cerr << std::endl << std::format("{}{}", e.what(), kHint);
-      }
-      break;
-    }
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    sniffer->sniff_current_channel();
-  }
-  std::cerr << std::endl;
-
-  for (auto ch : channels) {
-    const auto& cinfo = sniffer->channels_info()[ch - 1];
-    if (cinfo.packets == 0) {
-      hidden_channels++;
-      continue;
-    } else {
-      uint32_t freq_mhz = 0;
+  for (const auto& channels : all_freqs_channels) {
+    sniffer->freq_type = channels.freq;
+    for (const auto& ch : channels.channels_range) {
+      sniffer->channel = ch;
+      uint32_t mhz_channel = 0;
       try {
-        freq_mhz = rfmstat::channel_to_mhz(ch);
+        mhz_channel = rfmstat::channel_to_mhz(ch, channels.freq);
       } catch (std::invalid_argument& e) {
-        hidden_channels++;
+        std::cerr << "\r" << e.what()
+                  << "                                           ";
+        ++incorrect_channels;
         continue;
       }
-      std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch, freq_mhz)
-                << std::endl;
-      std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[ch - 1],
-                                              timeout)
-                << std::endl;
+
+      // Trying to change channel
+      try {
+        iface_dev->set_rfmon_channel(mhz_channel);
+      } catch (const std::runtime_error& e) {
+        if (ch == 1) {
+          std::cerr << std::format("\r{}{}                ", e.what(), kHint);
+
+        } else {
+          std::cerr << std::format("\r{}{}                ", e.what(), kHint);
+        }
+        incorrect_channels++;
+        continue;
+      }
+
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      sniffer->sniff_current_channel();
+      all_sniffed_channels++;
+    }
+  }
+  std::cerr << std::endl;
+  for (const auto& channels : all_freqs_channels) {
+    sniffer->freq_type = channels.freq;
+    for (auto ch : channels.channels_range) {
+      const auto& cinfo = sniffer->channels_info()[ch];
+      if (cinfo.packets == 0) {
+        hidden_channels++;
+        continue;
+      } else {
+        uint32_t freq_mhz = 0;
+        try {
+          freq_mhz = rfmstat::channel_to_mhz(ch, channels.freq);
+        } catch (std::invalid_argument& e) {
+          hidden_channels++;
+          continue;
+        }
+        std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch,
+                                 freq_mhz)
+                  << std::endl;
+        std::cout << rfmstat::get_channel_audit(
+                         sniffer->channels_info()[ch], timeout)
+                  << std::endl;
+      }
     }
   }
 
   if (hidden_channels - incorrect_channels > 0) {
-    std::cout << std::format("{} channel(s) hidden, (no packets captured)",
-                             hidden_channels - incorrect_channels)
+    std::cout << std::format("{} (out of {}) channel(s) hidden, (no packets captured)",
+                             hidden_channels - incorrect_channels, all_sniffed_channels)
               << std::endl;
   }
   return 0;
