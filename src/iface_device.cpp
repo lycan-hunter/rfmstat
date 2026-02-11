@@ -65,7 +65,8 @@ void IfaceDev::set_rfmon_channel(const uint32_t& freq_mhz) {
   int err = nl_send_sync(_sk, msg);
   if (err < 0) {
     throw std::runtime_error(std::format("Failed to set {} MHz channel: {}",
-                                         freq_mhz, std::string(nl_geterror(err))));
+                                         freq_mhz,
+                                         std::string(nl_geterror(err))));
   }
 }
 

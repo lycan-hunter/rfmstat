@@ -26,7 +26,9 @@
 int main(int argc, char** argv) {
   char errbuf[PCAP_ERRBUF_SIZE];
 
-  CLI::App app{std::format("RFMstat v{} -- Wi-Fi broadcast passive statistics collector", rfmstat::kVERSION)};
+  CLI::App app{
+      std::format("RFMstat v{} -- Wi-Fi broadcast passive statistics collector",
+                  rfmstat::kVERSION)};
 
   std::string iface = "";
   std::string raw_channels_24;
@@ -53,8 +55,8 @@ int main(int argc, char** argv) {
   app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
 
   app.add_flag("-s,--silent", silent, "Output only final reports");
-  app.set_version_flag("-V,--version", std::string(rfmstat::kVERSION));
-
+  app.set_version_flag("-V,--version",
+                       std::format("RFMstat version {}", rfmstat::kVERSION));
 
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help") {
@@ -200,12 +202,12 @@ int main(int argc, char** argv) {
   // !!!!
   try {
     // For some reason, the first channel change call is ignored, so ballast has
-    // been added. Delete from "!!!!" to "!!!!" if it interfering to start program
+    // been added. Delete from "!!!!" to "!!!!" if it interfering to start
+    // program
     iface_dev->set_rfmon_channel(
         rfmstat::channel_to_mhz(1, rfmstat::WiFiFreqs::FREQ_24GHz));
   } catch (std::exception& e) {
-    std::cerr << e.what()
-              << ": ballast was worked ! Checkup main.cpp"
+    std::cerr << e.what() << ": ballast was worked ! Checkup main.cpp"
               << std::endl;
     return 1;
   }
@@ -219,11 +221,11 @@ int main(int argc, char** argv) {
       try {
         mhz_channel = rfmstat::channel_to_mhz(ch, channels.freq);
       } catch (std::invalid_argument& e) {
-        if (!silent){
-std::cerr << "\r" << e.what()
-                  << "                                           ";
+        if (!silent) {
+          std::cerr << "\r" << e.what()
+                    << "                                           ";
         }
-        
+
         ++incorrect_channels;
         continue;
       }
@@ -232,14 +234,14 @@ std::cerr << "\r" << e.what()
       try {
         iface_dev->set_rfmon_channel(mhz_channel);
       } catch (const std::runtime_error& e) {
-        if (!silent){
-        if (ch == 1) {
-          std::cerr << std::format("\r{}{}                ", e.what(), kHint);
+        if (!silent) {
+          if (ch == 1) {
+            std::cerr << std::format("\r{}{}                ", e.what(), kHint);
 
-        } else {
-          std::cerr << std::format("\r{}{}                ", e.what(), kHint);
+          } else {
+            std::cerr << std::format("\r{}{}                ", e.what(), kHint);
+          }
         }
-      }
         incorrect_channels++;
         continue;
       }
@@ -249,7 +251,7 @@ std::cerr << "\r" << e.what()
       all_sniffed_channels++;
     }
   }
-  
+
   if (!silent) std::cerr << std::endl;
 
   for (const auto& channels : all_freqs_channels) {
@@ -270,16 +272,17 @@ std::cerr << "\r" << e.what()
         std::cout << std::format("Channel {:>2} ({:4} MHz) report:", ch,
                                  freq_mhz)
                   << std::endl;
-        std::cout << rfmstat::get_channel_audit(
-                         sniffer->channels_info()[ch], timeout)
+        std::cout << rfmstat::get_channel_audit(sniffer->channels_info()[ch],
+                                                timeout)
                   << std::endl;
       }
     }
   }
 
   if (hidden_channels - incorrect_channels > 0) {
-    std::cout << std::format("{} (out of {}) channel(s) hidden, (no packets captured)",
-                             hidden_channels - incorrect_channels, all_sniffed_channels)
+    std::cout << std::format(
+                     "{} (out of {}) channel(s) hidden, (no packets captured)",
+                     hidden_channels - incorrect_channels, all_sniffed_channels)
               << std::endl;
   }
   return 0;
