@@ -49,7 +49,7 @@ std::string get_channel_audit(const ChannelData& d, const uint32_t& timeout) {
   ss << std::fixed << std::setprecision(2);
 
   double duration_sec = std::max(0.001, static_cast<double>(timeout) / 1000.0);
-  
+
   double data_pkts = (double)d.data_plain + d.data_qos;
   double ctrl_pkts = (double)d.ctrl_ack + d.ctrl_rts + d.ctrl_cts + d.ctrl_ba;
   double mgmt_pkts = (double)d.mgmt_beacon + d.mgmt_assoc + d.mgmt_auth +
@@ -62,20 +62,25 @@ std::string get_channel_audit(const ChannelData& d, const uint32_t& timeout) {
 
   double total_acks = static_cast<double>(d.ctrl_ack + d.ctrl_ba);
   double ack_ratio = (data_pkts > 0) ? (total_acks / data_pkts) : 0.0;
-  double rts_raw = (d.ctrl_rts > 0) ? (static_cast<double>(d.ctrl_cts) / d.ctrl_rts) : 0.0;
+  double rts_raw =
+      (d.ctrl_rts > 0) ? (static_cast<double>(d.ctrl_cts) / d.ctrl_rts) : 0.0;
 
-  ss << "net_channel_audit: " << d.packets << " pkts, " << d.length << " bytes [OK]\n";
+  ss << "net_channel_audit: " << d.packets << " pkts, " << d.length
+     << " bytes [OK]\n";
   ss << "|\n";
 
   ss << "+-- flow_stats\n";
   ss << "|   |-- throughput: " << mbps << " Mbps\n";
   ss << "|   |-- intensity:  " << pps << " pps\n";
-  ss << "|   `-- avg_frame:  " << (d.packets > 0 ? d.length / d.packets : 0) << " bytes\n";
+  ss << "|   `-- avg_frame:  " << (d.packets > 0 ? d.length / d.packets : 0)
+     << " bytes\n";
 
   ss << "+-- link_health\n";
   ss << "|   |-- ack_ratio:  " << ack_ratio;
-  if (ack_ratio > 1.5) ss << " [DATA_LOSS_OR_PHY_MISMATCH]";
-  else if (data_pkts > 50 && ack_ratio < 0.1) ss << " [HIGH_PACKET_LOSS]";
+  if (ack_ratio > 1.5)
+    ss << " [DATA_LOSS_OR_PHY_MISMATCH]";
+  else if (data_pkts > 50 && ack_ratio < 0.1)
+    ss << " [HIGH_PACKET_LOSS]";
   ss << "\n";
 
   ss << "|   |-- rts_cts_ok: " << (std::min(1.0, rts_raw) * 100.0) << " %";
@@ -84,9 +89,14 @@ std::string get_channel_audit(const ChannelData& d, const uint32_t& timeout) {
   ss << "|   `-- l2_errors:  " << d.unknown << " (unrecognized/noise)\n";
 
   ss << "+-- proto_dist\n";
-  ss << "|   |-- data: " << std::setw(6) << (uint64_t)(data_pkts + d.data_null) << "\n";
-  ss << "|   |-- ctrl: " << std::setw(6) << (uint64_t)ctrl_pkts << "\n";
-  ss << "|   `-- mgmt: " << std::setw(6) << (uint64_t)mgmt_pkts << "\n";
+  ss << "|   |-- data: " << std::setw(6) << (uint64_t)(data_pkts + d.data_null)
+     << " (qos:" << d.data_qos << ", plain:" << d.data_plain
+     << ", null:" << d.data_null << ")\n";
+  ss << "|   |-- ctrl: " << std::setw(6) << (uint64_t)ctrl_pkts
+     << " (ack:" << d.ctrl_ack << ", rts:" << d.ctrl_rts
+     << ", cts:" << d.ctrl_cts << ")\n";
+  ss << "|   `-- mgmt: " << std::setw(6) << (uint64_t)mgmt_pkts
+     << " (bcn:" << d.mgmt_beacon << ", prb:" << d.mgmt_probe_req << ")\n";
 
   ss << "|\n";
   ss << "+-- security_log\n";
@@ -104,11 +114,16 @@ std::string get_channel_audit(const ChannelData& d, const uint32_t& timeout) {
 
   ss << "|\n";
   ss << "`-- diag_verdict: ";
-  if (deauth_eps > 1.0) ss << "UNDER_ATTACK";
-  else if (mbps > 400.0) ss << "SATURATED";
-  else if (ack_ratio > 2.0 && total_acks > 20) ss << "INCOMPLETE_CAPTURE";
-  else if (d.unknown > (d.packets * 0.4)) ss << "HIGH_L2_NOISE";
-  else ss << "STABLE";
+  if (deauth_eps > 1.0)
+    ss << "UNDER_ATTACK";
+  else if (mbps > 400.0)
+    ss << "SATURATED";
+  else if (ack_ratio > 2.0 && total_acks > 20)
+    ss << "INCOMPLETE_CAPTURE";
+  else if (d.unknown > (d.packets * 0.4))
+    ss << "HIGH_L2_NOISE";
+  else
+    ss << "STABLE";
   ss << "\n";
 
   return ss.str();
