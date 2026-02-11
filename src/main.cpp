@@ -21,11 +21,12 @@
 #include "rfmstat/iface_device.hpp"
 #include "rfmstat/sniffer.hpp"
 #include "rfmstat/utils.hpp"
+#include "rfmstat/version.hpp"
 
 int main(int argc, char** argv) {
   char errbuf[PCAP_ERRBUF_SIZE];
 
-  CLI::App app{"RFMstat -- Wi-Fi broadcast passive statistics collector"};
+  CLI::App app{std::format("RFMstat v{} -- Wi-Fi broadcast passive statistics collector", rfmstat::kVERSION)};
 
   std::string iface = "";
   std::string raw_channels_24;
@@ -39,14 +40,21 @@ int main(int argc, char** argv) {
 
   uint32_t timeout = 5000;
 
+  bool silent = false;
+
+  // Args and flags section
   app.add_option("-i,--iface", iface, "Network interface to monitor");
   app.add_option("-2,--2_4ghz", raw_channels_24,
-                 "Range of channels to scan (2.4 GHz)");
+                 "Range of channels to scan (2.4 GHz) (e.g. 1,6,11 or 1-13)");
   app.add_option("-5,--5ghz", raw_channels_5,
                  "Range of channels to scan (5 GHz)");
   app.add_option("-6,--6ghz", raw_channels_6,
                  "Range of channels to scan (6 GHz)");
   app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
+
+  app.add_flag("-s,--silent", silent, "Output only final reports");
+  app.set_version_flag("-V,--version", std::string(rfmstat::kVERSION));
+
 
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help") {
@@ -146,7 +154,7 @@ int main(int argc, char** argv) {
 
   std::unique_ptr<rfmstat::IfaceDev> iface_dev = nullptr;
   std::unique_ptr<rfmstat::ChannelSniffer> sniffer =
-      std::make_unique<rfmstat::ChannelSniffer>(1, iface, timeout);
+      std::make_unique<rfmstat::ChannelSniffer>(1, iface, timeout, !silent);
 
 // Hint
 #ifndef _WIN32
@@ -188,9 +196,11 @@ int main(int argc, char** argv) {
   uint64_t hidden_channels = 0;
   uint64_t incorrect_channels = 0;
   uint32_t all_sniffed_channels = 0;
+
+  // !!!!
   try {
     // For some reason, the first channel change call is ignored, so ballast has
-    // been added
+    // been added. Delete from "!!!!" to "!!!!" if it interfering to start program
     iface_dev->set_rfmon_channel(
         rfmstat::channel_to_mhz(1, rfmstat::WiFiFreqs::FREQ_24GHz));
   } catch (std::exception& e) {
@@ -199,6 +209,8 @@ int main(int argc, char** argv) {
               << std::endl;
     return 1;
   }
+  // !!!!
+
   for (const auto& channels : all_freqs_channels) {
     sniffer->freq_type = channels.freq;
     for (const auto& ch : channels.channels_range) {
@@ -207,8 +219,11 @@ int main(int argc, char** argv) {
       try {
         mhz_channel = rfmstat::channel_to_mhz(ch, channels.freq);
       } catch (std::invalid_argument& e) {
-        std::cerr << "\r" << e.what()
+        if (!silent){
+std::cerr << "\r" << e.what()
                   << "                                           ";
+        }
+        
         ++incorrect_channels;
         continue;
       }
@@ -217,12 +232,14 @@ int main(int argc, char** argv) {
       try {
         iface_dev->set_rfmon_channel(mhz_channel);
       } catch (const std::runtime_error& e) {
+        if (!silent){
         if (ch == 1) {
           std::cerr << std::format("\r{}{}                ", e.what(), kHint);
 
         } else {
           std::cerr << std::format("\r{}{}                ", e.what(), kHint);
         }
+      }
         incorrect_channels++;
         continue;
       }
@@ -232,7 +249,9 @@ int main(int argc, char** argv) {
       all_sniffed_channels++;
     }
   }
-  std::cerr << std::endl;
+  
+  if (!silent) std::cerr << std::endl;
+
   for (const auto& channels : all_freqs_channels) {
     sniffer->freq_type = channels.freq;
     for (auto ch : channels.channels_range) {

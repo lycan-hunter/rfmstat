@@ -12,7 +12,7 @@
 
 namespace rfmstat {
 ChannelSniffer::ChannelSniffer(const uint8_t& channel, const std::string& iface,
-                               const uint64_t& timeout)
+                               const uint64_t& timeout, bool verbose)
     : _channels_info_24(256), _channels_info_5(256), _channels_info_6(256) {
   if (channel > 233) {
     throw std::invalid_argument(
@@ -25,6 +25,7 @@ ChannelSniffer::ChannelSniffer(const uint8_t& channel, const std::string& iface,
   this->timeout = timeout;
   this->iface = iface;
   this->channel = channel;
+  this->verbose = verbose;
 }
 
 ChannelSniffer::~ChannelSniffer() {
@@ -185,13 +186,14 @@ void ChannelSniffer::sniff_current_channel() {
     }
 
     uint32_t freq_mhz = rfmstat::channel_to_mhz(channel, freq_type);
-
-    std::cerr << "\r"
-              << std::format(
-                     "Monitoring on {:>2} channel ({} MHz), at {} {:<30}",
-                     channel, freq_mhz, iface,
-                     rfmstat::get_channel_rate(current_pps, freq_mhz))
-              << std::flush;
+    if (verbose) {
+      std::cerr << "\r"
+                << std::format(
+                       "Monitoring on {:>2} channel ({} MHz), at {} {:<30}",
+                       channel, freq_mhz, iface,
+                       rfmstat::get_channel_rate(current_pps, freq_mhz))
+                << std::flush;
+    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }

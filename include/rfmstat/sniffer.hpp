@@ -14,7 +14,7 @@ namespace rfmstat {
 class ChannelSniffer {
  public:
   ChannelSniffer(const uint8_t& channel, const std::string& iface,
-                 const uint64_t& timeout);
+                 const uint64_t& timeout, bool verbose);
   ~ChannelSniffer();
 
   ChannelSniffer(const ChannelSniffer&) = delete;
@@ -25,6 +25,8 @@ class ChannelSniffer {
   void sniff_current_channel();
 
   bool is_sniffing() const { return _is_sniffing; }
+
+  bool verbose = false;
 
   uint8_t channel = 0;
   WiFiFreqs freq_type = WiFiFreqs::FREQ_24GHz;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(rfmstat VERSION 1.0 LANGUAGES CXX)
+project(rfmstat VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
@@ -9,13 +9,17 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 add_subdirectory(third_party/CLI11)
 
 find_package(PkgConfig REQUIRED)
-# Добавляем libnl-3.0 и libnl-genl-3.0 в поиск
+
 pkg_check_modules(PCAP REQUIRED libpcap)
 pkg_check_modules(LIBNL REQUIRED libnl-3.0 libnl-genl-3.0)
 
 find_package(Threads REQUIRED)
 
-# Добавляем IfaceDev.cpp в список сборки
+configure_file(
+    "include/rfmstat/version.hpp.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/rfmstat/version.hpp"
+)
+
 add_executable(${PROJECT_NAME} 
     src/main.cpp 
     src/sniffer.cpp
@@ -24,14 +28,13 @@ add_executable(${PROJECT_NAME}
     src/formatter.cpp
 )
 
-# Добавляем пути к заголовкам libnl
 target_include_directories(${PROJECT_NAME} PRIVATE 
     include 
     ${PCAP_INCLUDE_DIRS}
     ${LIBNL_INCLUDE_DIRS}
+    "${CMAKE_CURRENT_BINARY_DIR}/generated"
 )
 
-# Линкуем libnl (подтянет и основной nl, и genl)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     CLI11::CLI11
     ${PCAP_LIBRARIES}
