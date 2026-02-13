@@ -1,0 +1,85 @@
+.TH RFMSTAT 1 "FEBRUARY 2026" "1.0.0" "RFMstat Manual"
+.SH NAME
+rfmstat \- Wi-Fi broadcast passive statistics collector and auditor
+.SH SYNOPSIS
+.B rfmstat
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B rfmstat
+(Radio Frequency Monitor Statistics) is a high-performance passive auditor for Wi-Fi networks. 
+It performs deep-packet analysis of 802.11 frames in monitor mode to diagnose link health, 
+detect anomalies, and log security events. 
+.PP
+The tool uses an EPS-based (Events Per Second) detection logic, making analysis accurate 
+regardless of the dwell time on a channel.
+.SH OPTIONS
+.TP
+.BR \-i ", " \-\-iface " \fITEXT\fR"
+Network interface to monitor. The interface \fBmust\fR be in monitor mode. 
+If not specified, the system default interface is used.
+.TP
+.BR \-2 ", " \-\-2_4ghz " \fIRANGE\fR"
+Range of channels to scan for 2.4 GHz (e.g., "1,6,11" or "1-13"). Default: all.
+.TP
+.BR \-5 ", " \-\-5ghz " \fIRANGE\fR"
+Range of channels to scan for 5 GHz (e.g., "36,40,44" or "36-165"). Default: all.
+.TP
+.BR \-6 ", " \-\-6ghz " \fIRANGE\fR"
+Range of channels to scan for 6 GHz (e.g., "1,5,9"). Default: all.
+.TP
+.BR \-t ", " \-\-timeout " \fIUINT\fR"
+Dwell time (timeout) per channel in milliseconds. 
+\fB5000ms+\fR is recommended for deep audit. 
+\fB100-500ms\fR is suitable for fast discovery. Default: 5000.
+.TP
+.BR \-s ", " \-\-silent
+Silent mode. Suppresses per-channel real-time output and shows only final audit reports.
+.TP
+.BR \-V ", " \-\-version
+Display version information and exit.
+.TP
+.BR \-h ", " \-\-help
+Display help message and exit.
+.SH DIAGNOSTIC TAGS
+These indicators appear in brackets \fB[]\fR within the report:
+.TP
+.B DATA_LOSS_OR_PHY_MISMATCH
+High \fIack_ratio\fR (>1.5). You see ACKs but miss Data frames. Usually occurs when the 
+Wi-Fi adapter cannot decode high-speed modulations (e.g., Wi-Fi 6 traffic on a Wi-Fi 4 card).
+.TP
+.B HIGH_PACKET_LOSS
+Low \fIack_ratio\fR (<0.1). High data volume but almost no ACKs. Indicates extreme 
+interference or a client being out of range.
+.TP
+.B ASYMMETRIC_SIGHT
+\fIrts_raw\fR > 1.05. CTS responses outnumber RTS requests. You hear the Access Point 
+well, but the Client poorly.
+.TP
+.B KICK_ATTACK
+\fIdeauth_eps\fR > 1.0. High intensity of Deauthentication frames. Active attempt to 
+forcefully disconnect clients.
+.TP
+.B BRUTEFORCE
+\fIauth_eps\fR > 5.0. High intensity of Authentication frames. Possible WPA handshake 
+brute-force or flood.
+.SH VERDICTS (PRIORITY ORDER)
+.IP "1. \fBUNDER_ATTACK\fR"
+Security threat detected (Deauth/Auth flood). Network stability is at risk.
+.IP "2. \fBSATURATED\fR"
+Throughput exceeds 400 Mbps. Channel is fully utilized.
+.IP "3. \fBINCOMPLETE_CAPTURE\fR"
+High data loss (sensor mismatch). You are missing heavy data frames.
+.IP "4. \fBHIGH_L2_NOISE\fR"
+Over 40% of packets are unrecognized, malformed, or noise.
+.IP "5. \fBSTABLE\fR"
+No anomalies detected. Channel is operating normally.
+.SH EXIT STATUS
+Accessing raw 802.11 frames requires \fBroot\fR privileges. Failure to provide 
+sufficient permissions or specifying a non-monitor interface will result in an error.
+.SH EXAMPLES
+.IP "Audit 2.4GHz channels 1, 6, and 11 with 1s timeout:"
+sudo rfmstat -i wlan0 -2 1,6,11 -t 1000
+.IP "Deep audit of 5GHz channel 36:"
+sudo rfmstat -i wlan0 -5 36 -t 5000
+.SH AUTHOR
+Written by lycan-hunter. Project home: <https://github.com/lycan-hunter/rfmstat>

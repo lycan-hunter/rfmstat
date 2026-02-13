@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 
+if(NOT EXISTS "${PROJECT_SOURCE_DIR}/third_party/CLI11/CMakeLists.txt")
+    message(FATAL_ERROR "CLI11 submodule is missing! Run: git submodule update --init --recursive")
+endif()
+
 add_subdirectory(third_party/CLI11)
 
 find_package(PkgConfig REQUIRED)
@@ -43,3 +47,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 target_link_options(${PROJECT_NAME} PRIVATE ${PCAP_LDFLAGS} ${LIBNL_LDFLAGS})
+
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+install(FILES man/rfmstat.1 
+        DESTINATION share/man/man1)
+
+install(FILES man/rfmstat.ru.1 
+        DESTINATION share/man/ru/man1 
+        RENAME rfmstat.1)

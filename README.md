@@ -70,6 +70,9 @@ To build and run **RFMstat**, you need:
 git clone https://github.com
 cd rfmstat
 
+# Installing git submodules
+git submodule update --init --recursive
+
 # Build the project
 mkdir build && cd build
 cmake ..
@@ -79,7 +82,7 @@ make
 ## 🚩 Run
 ```bash
 # Run (requires root for raw socket access)
-sudo ./bin/rfmstat -i wlan0
+sudo rfmstat -i wlan0
 ```
 
 ---
@@ -114,15 +117,15 @@ The final verdict is the overall assessment of the channel state, selected by pr
 
 *   **Quick check on 2.4GHZ band channels 1, 6 and 11:**
     ```bash
-    sudo ./rfmstat -i wlan0 -2 1,6,11 -t 1000
+    sudo rfmstat -i wlan0 -2 1,6,11 -t 1000
     ```
 *   **Deep audit of 5GHz band (channels 36) with 5s dwell time:**
     ```bash
-    sudo ./rfmstat -i wlan0 -5 36 -t 5000
+    sudo rfmstat -i wlan0 -5 36 -t 5000
     ```
 *   **Silent mode (output only final audit reports):**
     ```bash
-    sudo ./rfmstat -i wlan0 -2 1-13 -s
+    sudo rfmstat -i wlan0 -2 1-13 -s
     ```
 
 ---
