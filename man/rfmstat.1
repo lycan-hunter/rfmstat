@@ -83,3 +83,45 @@ sudo rfmstat -i wlan0 -2 1,6,11 -t 1000
 sudo rfmstat -i wlan0 -5 36 -t 5000
 .SH AUTHOR
 Written by lycan-hunter. Project home: <https://github.com/lycan-hunter/rfmstat>
+lhunter@macboobs ~/Загрузки> git clone https://github.com/lycan-hunter/rfmstat
+Клонирование в «rfmstat»...
+remote: Enumerating objects: 220, done.
+remote: Counting objects: 100% (220/220), done.
+remote: Compressing objects: 100% (113/113), done.
+remote: Total 220 (delta 129), reused 177 (delta 90), pack-reused 0 (from 0)
+Получение объектов: 100% (220/220), 55.41 КиБ | 822.00 КиБ/с, готово.
+Определение изменений: 100% (129/129), готово.
+lhunter@macboobs ~/Загрузки> cd rfmstat
+
+                             # Installing git submodules
+                             git submodule update --init --recursive
+
+                             # Build the project
+                             mkdir build && cd build
+                             cmake ..
+                             make
+-- The CXX compiler identification is GNU 15.2.1
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Error at CMakeLists.txt:10 (message):
+  CLI11 submodule is missing! Run: git submodule update --init --recursive
+
+
+-- Configuring incomplete, errors occurred!
+make: *** Не заданы цели и не найден make-файл.  Останов.
+lhunter@macboobs ~/З/r/build (main) [2]> LS
+fish: Unknown command: LS
+lhunter@macboobs ~/З/r/build (main) [127]> ls
+CMakeCache.txt  CMakeFiles/
+lhunter@macboobs ~/З/r/build (main)> cd ..
+lhunter@macboobs ~/З/rfmstat (main)> ls
+build/  CMakeLists.txt  include/  LICENSE  man/  README.md  src/
+lhunter@macboobs ~/З/rfmstat (main)> ls -a
+./  ../  build/  .clang-format  CMakeLists.txt  .git/  .gitignore  .gitmodules  include/  LICENSE  man/  README.md  src/
+lhunter@macboobs ~/З/rfmstat (main)> cat .gitmodules 
+[submodule "third_party/CLI11"]
+    path = third_party/CLI11
+    url = https://github.com/CLIUtils/CLI11.git

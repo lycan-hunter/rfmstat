@@ -44,7 +44,7 @@
 # Builds
 build/
 bin/
-third_party/
+# third_party/
 .vscode/
 
 .DS_Store

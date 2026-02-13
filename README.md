@@ -67,7 +67,7 @@ To build and run **RFMstat**, you need:
 
 ```bash
 # Clone the repository
-git clone https://github.com
+git clone https://github.com/lycan-hunter/rfmstat
 cd rfmstat
 
 # Installing git submodules
