@@ -30,6 +30,8 @@ int main(int argc, char** argv) {
       std::format("RFMstat v{} -- Wi-Fi broadcast passive statistics collector",
                   rfmstat::kVERSION)};
 
+  // app.option_defaults()->always_capture_default();
+
   std::string iface = "";
   std::string raw_channels_24;
   std::string raw_channels_5;
@@ -45,18 +47,25 @@ int main(int argc, char** argv) {
   bool silent = false;
 
   // Args and flags section
-  app.add_option("-i,--iface", iface, "Network interface to monitor");
+  app.add_option("-i,--iface", iface, "Network interface to monitor. Default: default interface");
   app.add_option("-2,--2_4ghz", raw_channels_24,
-                 "Range of channels to scan (2.4 GHz) (e.g. 1,6,11 or 1-13)");
+                 "Range of channels to scan (2.4 GHz). Default: all");
   app.add_option("-5,--5ghz", raw_channels_5,
-                 "Range of channels to scan (5 GHz)");
+                 "Range of channels to scan (5 GHz). Default: all");
   app.add_option("-6,--6ghz", raw_channels_6,
-                 "Range of channels to scan (6 GHz)");
-  app.add_option("-t,--timeout", timeout, "Dwell time per channel (ms)");
+                 "Range of channels to scan (6 GHz). Default: all");
+  app.add_option("-t,--timeout", timeout,
+                 "Dwell time per channel (ms). Default: 5 sec");
 
   app.add_flag("-s,--silent", silent, "Output only final reports");
   app.set_version_flag("-V,--version",
                        std::format("RFMstat version {}", rfmstat::kVERSION));
+
+  app.footer(
+      "\nEXAMPLES:\n"
+      "  sudo rfmstat -i wlan0 -2 1-11 -t 1000\n"
+      "  sudo rfmstat -i wlan0 -5 36,48 -s\n\n"
+      "Project home: <https://github.com/lycan-hunter/rfmstat>");
 
   for (int i = 1; i < argc; ++i) {
     if (std::string(argv[i]) == "-h" || std::string(argv[i]) == "--help") {
