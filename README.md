@@ -77,6 +77,9 @@ git submodule update --init --recursive
 mkdir build && cd build
 cmake ..
 make
+
+# Copy to system and man paths
+sudo make install
 ```
 
 ## 🚩 Run
